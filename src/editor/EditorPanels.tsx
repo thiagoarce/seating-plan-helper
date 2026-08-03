@@ -14,12 +14,21 @@ import { assignableSeatCount } from '../domain/room';
 import type {
   RoomDefinition,
   RoomObjectType,
+  SeatingCenter,
   SeatingProject,
 } from '../domain/types';
 import { useMessages } from '../i18n/useMessages';
 import { createId } from '../shared/id';
 import { NumberField, Panel, SelectField, TextField, Toggle } from '../shared/ui';
-import { buildCenter, buildObject, buildRegion, buildTrapezoidFlower } from '../templates/builders';
+import {
+  buildCenter,
+  buildObject,
+  buildRegion,
+  buildTrapezoidDesk,
+  buildTrapezoidFlower,
+  buildTrapezoidHexagon,
+  buildTrapezoidRow,
+} from '../templates/builders';
 import { parseSelectionKey } from '../app/selection';
 import { applyResize, type RoomCanvasProps } from './RoomCanvas';
 import { rotateBy90 } from './canvasMath';
@@ -43,6 +52,40 @@ const DEFAULT_OBJECT_SIZE: Record<RoomObjectType, { width: number; height: numbe
   cabinet: { width: 120, height: 45 },
   custom: { width: 100, height: 60 },
 };
+
+type TrapezoidArrangement = 'single' | 'flower4' | 'hexagon6' | 'row4' | 'row5' | 'row6';
+
+const TRAPEZOID_NAME_KEY: Record<TrapezoidArrangement, string> = {
+  single: 'template.namePrefix.trapezoidDesk',
+  flower4: 'template.namePrefix.flower',
+  hexagon6: 'template.namePrefix.hexagon',
+  row4: 'template.namePrefix.trapezoidRow',
+  row5: 'template.namePrefix.trapezoidRow',
+  row6: 'template.namePrefix.trapezoidRow',
+};
+
+function buildTrapezoidArrangement(
+  id: string,
+  x: number,
+  y: number,
+  name: string,
+  arrangement: TrapezoidArrangement,
+): SeatingCenter {
+  switch (arrangement) {
+    case 'single':
+      return buildTrapezoidDesk({ id, x, y, name });
+    case 'flower4':
+      return buildTrapezoidFlower({ id, x, y, name });
+    case 'hexagon6':
+      return buildTrapezoidHexagon({ id, x, y, name });
+    case 'row4':
+      return buildTrapezoidRow({ id, x, y, name, count: 4 });
+    case 'row5':
+      return buildTrapezoidRow({ id, x, y, name, count: 5 });
+    case 'row6':
+      return buildTrapezoidRow({ id, x, y, name, count: 6 });
+  }
+}
 
 /** A spot near the middle of the room, nudged so new items do not stack. */
 function dropSpot(room: RoomDefinition, size: { width: number; height: number }): {
@@ -88,14 +131,14 @@ export function EditorToolsPanel({
     });
   };
 
-  const addTrapezoidFlower = (): void => {
+  const addTrapezoid = (arrangement: TrapezoidArrangement): void => {
     onUpdateRoom((draft) => {
       const id = createId('center');
       const ordinal = draft.centers.length + 1;
-      const name = `${t('template.namePrefix.flower')} ${ordinal}`;
-      const probe = buildTrapezoidFlower({ id, x: 0, y: 0, name });
+      const name = `${t(TRAPEZOID_NAME_KEY[arrangement])} ${ordinal}`;
+      const probe = buildTrapezoidArrangement(id, 0, 0, name, arrangement);
       const spot = dropSpot(draft, probe);
-      draft.centers.push(buildTrapezoidFlower({ id, x: spot.x, y: spot.y, name }));
+      draft.centers.push(buildTrapezoidArrangement(id, spot.x, spot.y, name, arrangement));
     });
   };
 
@@ -124,10 +167,24 @@ export function EditorToolsPanel({
             {t('editor.add.center', { count })}
           </button>
         ))}
-        <button type="button" onClick={addTrapezoidFlower}>
-          {t('editor.add.trapezoidFlower')}
-        </button>
       </div>
+
+      <SelectField
+        label={t('editor.add.trapezoid')}
+        value=""
+        onChange={(value) => {
+          if (value) addTrapezoid(value as TrapezoidArrangement);
+        }}
+        options={[
+          { value: '', label: t('common.none') },
+          { value: 'single', label: t('editor.add.trapezoidSingle') },
+          { value: 'flower4', label: t('editor.add.trapezoidFlower') },
+          { value: 'hexagon6', label: t('editor.add.trapezoidHexagon') },
+          { value: 'row4', label: t('editor.add.trapezoidRow', { count: 4 }) },
+          { value: 'row5', label: t('editor.add.trapezoidRow', { count: 5 }) },
+          { value: 'row6', label: t('editor.add.trapezoidRow', { count: 6 }) },
+        ]}
+      />
 
       <SelectField
         label={t('editor.add.object')}

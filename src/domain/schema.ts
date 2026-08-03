@@ -28,6 +28,22 @@ const rotationSchema = z.union([
   z.literal(270),
 ]);
 
+/** Wider than `rotationSchema`: trapezoid hexagon fans need 60°-step angles. */
+const seatRotationSchema = z.union([
+  z.literal(0),
+  z.literal(30),
+  z.literal(60),
+  z.literal(90),
+  z.literal(120),
+  z.literal(150),
+  z.literal(180),
+  z.literal(210),
+  z.literal(240),
+  z.literal(270),
+  z.literal(300),
+  z.literal(330),
+]);
+
 const pointSchema = z.object({ x: z.number(), y: z.number() });
 
 const idSchema = z.string().min(1);
@@ -47,7 +63,7 @@ const seatSchema = z.object({
   centerId: idSchema,
   x: z.number(),
   y: z.number(),
-  rotation: rotationSchema,
+  rotation: seatRotationSchema,
   label: z.string().optional(),
   enabled: z.boolean(),
   tags: z.array(z.string()).optional(),

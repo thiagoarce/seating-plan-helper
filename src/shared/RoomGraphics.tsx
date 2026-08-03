@@ -10,7 +10,7 @@
 
 import { Fragment } from 'react';
 import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react';
-import { SEAT_DEPTH, SEAT_SIZE, SEAT_WIDTH } from '../domain/defaults';
+import { SEAT_DEPTH, SEAT_SIZE, SEAT_WIDTH, TRAPEZOID_NARROW_RATIO } from '../domain/defaults';
 import { rotatedBounds, seatWorldPosition, seatWorldRotation } from '../domain/geometry';
 import type {
   ExportLayout,
@@ -67,8 +67,6 @@ export const DEFAULT_ROOM_VIEW_OPTIONS: RoomViewOptions = {
 
 const SEAT_CORNER = 6;
 const NAME_BASE_FONT_SIZE = 11;
-/** Half-width of a trapezoid desk's narrow (inner) edge, as a share of `half`. */
-const TRAPEZOID_NARROW_RATIO = 0.42;
 
 /** Unrotated trapezoid: narrow edge at top (toward `rotation`'s direction), wide at bottom. */
 function trapezoidPoints(x: number, y: number, half: number): string {

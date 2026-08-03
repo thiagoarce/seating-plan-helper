@@ -28,6 +28,13 @@ export const SEAT_WIDTH = 60;
 export const SEAT_DEPTH = 30;
 export const SEAT_SIZE = SEAT_WIDTH;
 
+/**
+ * Half-width of a trapezoid desk's narrow (inner) edge, as a share of its
+ * half-width. Shared by the renderer (drawing the wedge) and the trapezoid
+ * pod builders (spacing math needs the same taper to tile desks flush).
+ */
+export const TRAPEZOID_NARROW_RATIO = 0.42;
+
 export interface DistancePresets {
   near: number;
   far: number;

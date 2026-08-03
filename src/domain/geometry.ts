@@ -71,9 +71,9 @@ export function seatWorldPosition(center: SeatingCenter, seat: Seat): Point {
   return rotatePoint(unrotated, mid, center.rotation);
 }
 
-/** Combined world rotation of a seat. */
-export function seatWorldRotation(center: SeatingCenter, seat: Seat): Rotation {
-  return (((center.rotation + seat.rotation) % 360) as Rotation);
+/** Combined world rotation of a seat, in degrees — purely a rendering angle. */
+export function seatWorldRotation(center: SeatingCenter, seat: Seat): number {
+  return (center.rotation + seat.rotation) % 360;
 }
 
 export function distance(a: Point, b: Point): number {

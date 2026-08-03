@@ -5,7 +5,7 @@
  * be moved or rotated later without rewriting its seats (TECHNICAL_SPEC §8).
  */
 
-import { SEAT_DEPTH, SEAT_SIZE, SEAT_WIDTH } from '../domain/defaults';
+import { SEAT_DEPTH, SEAT_SIZE, SEAT_WIDTH, TRAPEZOID_NARROW_RATIO } from '../domain/defaults';
 import type {
   Region,
   RegionGeometry,
@@ -14,6 +14,7 @@ import type {
   Rotation,
   Seat,
   SeatingCenter,
+  SeatRotation,
 } from '../domain/types';
 
 export const SEAT_GAP = 12;
@@ -172,6 +173,129 @@ export function buildTrapezoidFlower(spec: FlowerPodSpec): SeatingCenter {
     y: spec.y,
     width: FLOWER_BOX_SIZE,
     height: FLOWER_BOX_SIZE,
+    rotation: 0,
+    seats,
+  };
+}
+
+export interface TrapezoidDeskSpec {
+  id: string;
+  x: number;
+  y: number;
+  name?: string;
+}
+
+const TRAPEZOID_DESK_PADDING = 10;
+const TRAPEZOID_DESK_BOX_SIZE = SEAT_SIZE + TRAPEZOID_DESK_PADDING * 2;
+
+/** A single trapezoid desk, for teachers who just want that one shape without a pod. */
+export function buildTrapezoidDesk(spec: TrapezoidDeskSpec): SeatingCenter {
+  const center = TRAPEZOID_DESK_BOX_SIZE / 2;
+  return {
+    id: spec.id,
+    ...(spec.name !== undefined ? { name: spec.name } : {}),
+    x: spec.x,
+    y: spec.y,
+    width: TRAPEZOID_DESK_BOX_SIZE,
+    height: TRAPEZOID_DESK_BOX_SIZE,
+    rotation: 0,
+    seats: [
+      {
+        id: `${spec.id}-s1`,
+        centerId: spec.id,
+        x: center,
+        y: center,
+        rotation: 0,
+        enabled: true,
+        deskShape: 'trapezoid',
+        label: '1',
+      },
+    ],
+  };
+}
+
+/** Distance from a hexagon pod's shared center to each trapezoid's midpoint. */
+const HEXAGON_RADIUS = SEAT_WIDTH + 6;
+const HEXAGON_PADDING = 15;
+const HEXAGON_BOX_SIZE = (HEXAGON_RADIUS + SEAT_WIDTH / 2) * 2 + HEXAGON_PADDING * 2;
+
+/**
+ * Six trapezoid desks fanned around a shared center at true 60° steps, giving
+ * the closed hexagon real trapezoid-table clusters form — unlike the 4-way
+ * `buildTrapezoidFlower`, which is limited to quarter turns.
+ */
+export function buildTrapezoidHexagon(spec: FlowerPodSpec): SeatingCenter {
+  const center = HEXAGON_BOX_SIZE / 2;
+  const count = 6;
+
+  const seats: Seat[] = Array.from({ length: count }, (_, position) => {
+    // Same compass-bearing convention as the flower: 0° is north, clockwise.
+    const bearing = (360 / count) * position;
+    const radians = (bearing * Math.PI) / 180;
+    const rotation = ((bearing + 180) % 360) as SeatRotation;
+    return {
+      id: `${spec.id}-s${position + 1}`,
+      centerId: spec.id,
+      x: center + HEXAGON_RADIUS * Math.sin(radians),
+      y: center - HEXAGON_RADIUS * Math.cos(radians),
+      rotation,
+      enabled: true,
+      deskShape: 'trapezoid' as const,
+      label: `${position + 1}`,
+    };
+  });
+
+  return {
+    id: spec.id,
+    ...(spec.name !== undefined ? { name: spec.name } : {}),
+    x: spec.x,
+    y: spec.y,
+    width: HEXAGON_BOX_SIZE,
+    height: HEXAGON_BOX_SIZE,
+    rotation: 0,
+    seats,
+  };
+}
+
+export interface TrapezoidRowSpec {
+  id: string;
+  x: number;
+  y: number;
+  /** Number of desks in the row. */
+  count: number;
+  name?: string;
+}
+
+/**
+ * A row of trapezoid desks alternating 0°/180°, so each desk's slanted side
+ * tiles flush against its neighbour's — the classic parallelogram-shaped
+ * cluster, and the arrangement teachers actually use more than the flower.
+ */
+export function buildTrapezoidRow(spec: TrapezoidRowSpec): SeatingCenter {
+  const halfWidth = SEAT_WIDTH / 2;
+  const pitch = halfWidth * (1 + TRAPEZOID_NARROW_RATIO);
+  const width = Math.max(spec.count - 1, 0) * pitch + SEAT_WIDTH + CENTER_PADDING * 2;
+  const height = SEAT_SIZE + CENTER_PADDING * 2;
+  const centerY = height / 2;
+
+  const seats: Seat[] = Array.from({ length: spec.count }, (_, position) => ({
+    id: `${spec.id}-s${position + 1}`,
+    centerId: spec.id,
+    x: CENTER_PADDING + halfWidth + position * pitch,
+    y: centerY,
+    rotation: position % 2 === 0 ? 0 : 180,
+    enabled: true,
+    deskShape: 'trapezoid',
+    label: `${position + 1}`,
+  }));
+
+  return {
+    id: spec.id,
+    ...(spec.name !== undefined ? { name: spec.name } : {}),
+    x: spec.x,
+    y: spec.y,
+    width,
+    height,
     rotation: 0,
     seats,
   };

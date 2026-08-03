@@ -10,6 +10,14 @@ export const CURRENT_SCHEMA_VERSION = 1;
 
 export type Rotation = 0 | 90 | 180 | 270;
 
+/**
+ * A seat's own facing rotation. Wider than the quarter-turn `Rotation` used by
+ * centers/objects/labels because trapezoid desks fanned into a hexagon need
+ * 60°-step angles to actually point inward (§ DeskShape, `buildTrapezoidFan`).
+ * Purely a rendering angle — seat position math never rotates by this value.
+ */
+export type SeatRotation = 0 | 30 | 60 | 90 | 120 | 150 | 180 | 210 | 240 | 270 | 300 | 330;
+
 export interface Point {
   x: number;
   y: number;
@@ -47,7 +55,7 @@ export interface Seat {
   /** Offset from the center's top-left corner, before rotation. */
   x: number;
   y: number;
-  rotation: Rotation;
+  rotation: SeatRotation;
   label?: string;
   enabled: boolean;
   tags?: string[];
