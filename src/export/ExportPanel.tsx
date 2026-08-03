@@ -11,7 +11,8 @@ import type { SeatingProject } from '../domain/types';
 import { getCatalog, useMessages } from '../i18n/useMessages';
 import { createId } from '../shared/id';
 import { Notice, NumberField, Panel, SelectField, TextField, Toggle } from '../shared/ui';
-import { analysePlan, PlanDocument } from './PlanDocument';
+import { analysePlan, planFitScale, PlanDocument } from './PlanDocument';
+import { suggestReadableLayout, TARGET_NAME_POINTS } from './readability';
 import {
   downloadBlob,
   downloadText,
@@ -80,6 +81,17 @@ export function ExportPanel(props: ExportPanelProps): JSX.Element {
   const diagnostics = useMemo(() => analysePlan(project), [project]);
   const layout = project.exportLayout;
 
+  /** Size a name actually prints at, which is what "too small to read" means. */
+  const namePoints = useMemo(() => 11 * layout.fontScale * planFitScale(project), [project, layout]);
+  const applyReadableLayout = (): void => {
+    const suggestion = suggestReadableLayout(project);
+    props.onSetExportLayout({
+      nameStyle: suggestion.nameStyle,
+      fontScale: suggestion.fontScale,
+      fitToContent: true,
+    });
+  };
+
   const withBusy = async (label: string, task: () => Promise<void>): Promise<void> => {
     setBusy(label);
     try {
@@ -126,6 +138,14 @@ export function ExportPanel(props: ExportPanelProps): JSX.Element {
         {diagnostics.overflowingNames.length > 0 ? (
           <Notice kind="warning">{t('export.overflowWarning')}</Notice>
         ) : null}
+        {namePoints < TARGET_NAME_POINTS ? (
+          <Notice kind="warning">
+            {t('export.tinyNamesWarning', { points: namePoints.toFixed(1) })}
+          </Notice>
+        ) : null}
+        <button type="button" onClick={applyReadableLayout}>
+          {t('export.autoReadable')}
+        </button>
         {diagnostics.offCanvas ? <Notice kind="warning">{t('export.offCanvasWarning')}</Notice> : null}
 
         <h3 style={{ marginBottom: 'var(--space-2)' }}>{t('branding.title')}</h3>
@@ -245,6 +265,11 @@ export function ExportPanel(props: ExportPanelProps): JSX.Element {
           onChange={(value) => props.onSetExportLayout({ margin: value })}
         />
 
+        <Toggle
+          label={t('export.fitToContent')}
+          checked={layout.fitToContent}
+          onChange={(value) => props.onSetExportLayout({ fitToContent: value })}
+        />
         <Toggle
           label={t('export.showRoomObjects')}
           checked={layout.showRoomObjects}

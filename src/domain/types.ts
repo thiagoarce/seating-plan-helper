@@ -323,6 +323,13 @@ export interface ExportLayout {
   showSeats: boolean;
   showRegions: boolean;
   showEmptySeats: boolean;
+  /**
+   * Zooms the drawing to the desks and furniture actually in use instead of
+   * the full room rectangle. Without it, a room sized generously around a
+   * small arrangement scales everything — including student names — down to
+   * fit empty floor onto the page.
+   */
+  fitToContent: boolean;
   fontScale: number;
   nameStyle: 'full' | 'firstName' | 'firstNameLastInitial';
   transparentBackground: boolean;

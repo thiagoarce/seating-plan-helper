@@ -282,6 +282,9 @@ export const exportLayoutSchema = z.object({
   showSeats: z.boolean(),
   showRegions: z.boolean(),
   showEmptySeats: z.boolean(),
+  // Defaulted rather than required so documents exported before this option
+  // existed still import, and open with the readable framing.
+  fitToContent: z.boolean().default(true),
   fontScale: z.number().positive(),
   nameStyle: z.enum(['full', 'firstName', 'firstNameLastInitial']),
   transparentBackground: z.boolean(),

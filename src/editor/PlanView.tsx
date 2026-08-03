@@ -11,7 +11,11 @@ import type { RuleEvaluation } from '../constraints/evaluation';
 import type { RoomIndex } from '../domain/room';
 import type { Store } from '../app/store';
 import { useMessages } from '../i18n/useMessages';
-import { DEFAULT_ROOM_VIEW_OPTIONS, buildSeatPresentations } from '../shared/RoomGraphics';
+import {
+  DEFAULT_ROOM_VIEW_OPTIONS,
+  buildSeatPresentations,
+  planNameFontSize,
+} from '../shared/RoomGraphics';
 import { RoomCanvas } from './RoomCanvas';
 
 export interface PlanViewProps {
@@ -62,8 +66,21 @@ export function PlanView(props: PlanViewProps): JSX.Element {
   );
 
   const options = useMemo(
-    () => ({ ...DEFAULT_ROOM_VIEW_OPTIONS, showCenterLabels: true, showSeatLabels: true }),
-    [],
+    () => ({
+      ...DEFAULT_ROOM_VIEW_OPTIONS,
+      showCenterLabels: true,
+      showSeatLabels: true,
+      nameStyle: project.exportLayout.nameStyle,
+      fontScale: project.exportLayout.fontScale,
+      // Same single name size the export uses, so what the teacher arranges
+      // here is what comes out on paper.
+      nameFontSize: planNameFontSize(
+        seats,
+        project.exportLayout.nameStyle,
+        project.exportLayout.fontScale,
+      ),
+    }),
+    [seats, project.exportLayout.nameStyle, project.exportLayout.fontScale],
   );
 
   const violationCount = evaluations.filter((item) => item.status === 'violated').length;

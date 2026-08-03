@@ -22,6 +22,7 @@ import type {
   TextLabel,
 } from '../domain/types';
 import { displayName, wrapName } from '../export/page';
+import type { WrappedText } from '../export/page';
 import { centerDisplayName } from './labels';
 
 export interface SeatPresentation {
@@ -53,6 +54,12 @@ export interface RoomViewOptions {
    */
   showCenterLabels?: boolean;
   showSeatLabels?: boolean;
+  /**
+   * One name size shared by every desk (see `planNameFontSize`). Without it
+   * each desk sizes its own name, so a long name prints noticeably smaller
+   * than the short one beside it.
+   */
+  nameFontSize?: number;
 }
 
 export const DEFAULT_ROOM_VIEW_OPTIONS: RoomViewOptions = {
@@ -67,6 +74,8 @@ export const DEFAULT_ROOM_VIEW_OPTIONS: RoomViewOptions = {
 
 const SEAT_CORNER = 6;
 const NAME_BASE_FONT_SIZE = 11;
+const NAME_MIN_FONT_SIZE = 6;
+const NAME_LINE_RATIO = 1.15;
 
 /** Unrotated trapezoid: narrow edge at top (toward `rotation`'s direction), wide at bottom. */
 function trapezoidPoints(x: number, y: number, half: number): string {
@@ -79,7 +88,64 @@ function trapezoidPoints(x: number, y: number, half: number): string {
   ];
   return points.map(([px, py]) => `${px},${py}`).join(' ');
 }
-const NAME_MIN_FONT_SIZE = 6;
+
+/** Drawn footprint of a seat's desk, which `deskShape` decides. */
+export function seatDeskSize(seat: Seat): { width: number; height: number } {
+  return seat.deskShape === 'trapezoid'
+    ? { width: SEAT_WIDTH, height: SEAT_SIZE }
+    : { width: SEAT_WIDTH, height: SEAT_DEPTH };
+}
+
+/**
+ * Wraps a name at exactly `fontSize`, reporting overflow rather than shrinking.
+ *
+ * The line budget comes from the desk's real depth *at this size*: a
+ * rectangular desk is only `SEAT_DEPTH` deep, so the three lines this used to
+ * allow unconditionally would spill past its top and bottom edges.
+ */
+export function wrapSeatNameAt(name: string, seat: Seat, fontSize: number): WrappedText {
+  const desk = seatDeskSize(seat);
+  // A trapezoid tapers toward its narrow edge, so keep text off the slanted
+  // sides by budgeting for the narrower half of the wedge.
+  const widthInset = seat.deskShape === 'trapezoid' ? desk.width * 0.3 : 8;
+  return wrapName(name, {
+    maxWidth: desk.width - widthInset,
+    maxLines: Math.max(1, Math.floor(desk.height / (fontSize * NAME_LINE_RATIO))),
+    fontSize,
+    // Pinning the floor to the requested size stops wrapName shrinking on its
+    // own — the caller decides the size so every desk can share one.
+    minFontSize: fontSize,
+  });
+}
+
+/** Largest size up to `requested` at which `name` fits inside its desk. */
+export function fitSeatNameSize(name: string, seat: Seat, requested: number): number {
+  for (let size = requested; size > NAME_MIN_FONT_SIZE; size -= 0.5) {
+    if (!wrapSeatNameAt(name, seat, size).overflows) return size;
+  }
+  return NAME_MIN_FONT_SIZE;
+}
+
+/**
+ * One name size for the whole plan: the largest that every seated student's
+ * name can use. Sizing each desk independently — which is what shrinking
+ * inside `wrapName` did — left long names visibly smaller than their
+ * neighbours across the same chart.
+ */
+export function planNameFontSize(
+  presentations: readonly SeatPresentation[],
+  nameStyle: RoomViewOptions['nameStyle'],
+  fontScale: number,
+): number {
+  const requested = NAME_BASE_FONT_SIZE * fontScale;
+  let smallest = requested;
+  for (const presentation of presentations) {
+    if (!presentation.studentName) continue;
+    const label = displayName(presentation.studentName, nameStyle);
+    smallest = Math.min(smallest, fitSeatNameSize(label, presentation.seat, requested));
+  }
+  return smallest;
+}
 
 /** Builds the per-seat view model the drawing needs. */
 export function buildSeatPresentations(
@@ -287,14 +353,12 @@ export function SeatShape({
   // rectangle — twice as wide (side-to-side) as it is deep (front-to-back).
   const halfHeight = isTrapezoid ? SEAT_SIZE / 2 : SEAT_DEPTH / 2;
   const label = studentName ? displayName(studentName, options.nameStyle) : '';
-  const wrapped = wrapName(label, {
-    maxWidth: SEAT_WIDTH - 8,
-    maxLines: 3,
-    fontSize: NAME_BASE_FONT_SIZE * options.fontScale,
-    minFontSize: NAME_MIN_FONT_SIZE,
-  });
+  const nameSize =
+    options.nameFontSize ??
+    fitSeatNameSize(label, seat, NAME_BASE_FONT_SIZE * options.fontScale);
+  const wrapped = wrapSeatNameAt(label, seat, nameSize);
 
-  const lineHeight = wrapped.fontSize * 1.15;
+  const lineHeight = wrapped.fontSize * NAME_LINE_RATIO;
   const firstLineY = y - ((wrapped.lines.length - 1) * lineHeight) / 2 + wrapped.fontSize * 0.35;
 
   const classes = [

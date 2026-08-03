@@ -281,7 +281,7 @@ export const ptBR: MessageCatalog = {
     'Considere desativar uma dessas regras ou transformá-la em preferência.',
 
   // -- Plan / placement -----------------------------------------------------
-  'plan.title': 'Seating Plan',
+  'plan.title': 'Mapa de Sala',
   'plan.dragHint': 'Arraste um nome para um lugar. Solte sobre outro aluno para trocar.',
   'plan.emptySeat': 'Lugar livre',
   'plan.assign': 'Colocar aqui',
@@ -305,6 +305,10 @@ export const ptBR: MessageCatalog = {
   'export.orientation': 'Orientação',
   'export.margin': 'Margem',
   'export.fontScale': 'Tamanho do texto',
+  'export.fitToContent': 'Ampliar até as carteiras (ignorar espaço vazio)',
+  'export.autoReadable': 'Ajustar para os nomes ficarem legíveis',
+  'export.tinyNamesWarning':
+    'Os nomes vão sair com cerca de {points}pt no papel, pequeno demais para ler. Use o botão abaixo para ajustar.',
   'export.nameStyle': 'Como mostrar os nomes',
   'export.nameStyle.full': 'Nome completo',
   'export.nameStyle.firstName': 'Só o primeiro nome',

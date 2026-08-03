@@ -8,14 +8,19 @@
  * on white paper regardless of whether the teacher uses dark mode.
  */
 
-import { SEAT_SIZE } from '../domain/defaults';
-import { unionBounds } from '../domain/geometry';
-import type { SeatingProject } from '../domain/types';
+import { rotatedBounds, unionBounds } from '../domain/geometry';
+import type { Rect, RoomDefinition, SeatingProject } from '../domain/types';
 import type { MessageCatalog } from '../i18n/format';
 import { formatMessage } from '../i18n/format';
-import { RoomLayer, buildSeatPresentations } from '../shared/RoomGraphics';
+import {
+  RoomLayer,
+  buildSeatPresentations,
+  fitSeatNameSize,
+  planNameFontSize,
+  wrapSeatNameAt,
+} from '../shared/RoomGraphics';
 import type { RoomViewOptions, SeatPresentation } from '../shared/RoomGraphics';
-import { fitTransform, pageDimensions, wrapName } from './page';
+import { displayName, estimateTextWidth, fitTransform, pageDimensions } from './page';
 
 const HEADER_HEIGHT = 72;
 const FOOTER_HEIGHT = 28;
@@ -69,6 +74,60 @@ function viewOptions(project: SeatingProject): RoomViewOptions {
   };
 }
 
+/** Breathing room left around the drawing when cropping to content. */
+const CONTENT_PADDING = 20;
+
+function regionBounds(geometry: RoomDefinition['regions'][number]['geometry']): Rect | null {
+  if (geometry.type === 'rectangle') return geometry;
+  return unionBounds(
+    geometry.points.map((point) => ({ x: point.x, y: point.y, width: 0, height: 0 })),
+  );
+}
+
+/**
+ * The rectangle the drawing is framed against: everything actually visible,
+ * plus padding — or the whole room when `fitToContent` is off.
+ */
+export function contentBounds(project: SeatingProject, options: RoomViewOptions): Rect {
+  const room = project.room;
+  const whole: Rect = { x: 0, y: 0, width: room.width, height: room.height };
+  if (!project.exportLayout.fitToContent) return whole;
+
+  const rects: Rect[] = [];
+  if (options.showSeats) {
+    for (const center of room.centers) rects.push(rotatedBounds(center, center.rotation));
+  }
+  if (options.showObjects) {
+    for (const object of room.objects.filter((item) => item.visibleInExport)) {
+      rects.push(rotatedBounds(object, object.rotation));
+    }
+  }
+  if (options.showRegions) {
+    for (const region of room.regions.filter((item) => item.visibleInExport)) {
+      const bounds = regionBounds(region.geometry);
+      if (bounds) rects.push(bounds);
+    }
+  }
+  for (const label of room.labels.filter((item) => item.visibleInExport)) {
+    rects.push({
+      x: label.x,
+      y: label.y - label.fontSize,
+      width: estimateTextWidth(label.text, label.fontSize),
+      height: label.fontSize * 1.3,
+    });
+  }
+
+  const union = unionBounds(rects);
+  if (!union || union.width <= 0 || union.height <= 0) return whole;
+
+  return {
+    x: union.x - CONTENT_PADDING,
+    y: union.y - CONTENT_PADDING,
+    width: union.width + CONTENT_PADDING * 2,
+    height: union.height + CONTENT_PADDING * 2,
+  };
+}
+
 /**
  * Reports what would look wrong on paper before the user exports
  * (PRODUCT_SPEC §5.7, §9).
@@ -79,16 +138,15 @@ export function analysePlan(project: SeatingProject): PlanDiagnostics {
   const placement = new Map(project.assignments.map((item) => [item.studentId, item.seatId]));
   const seats = buildSeatPresentations(project.room, placement, studentNameById);
 
+  // A name "overflows" when it cannot be made to fit even at the smallest
+  // size the renderer will draw — `fitSeatNameSize` bottoms out there.
   const overflowingNames: string[] = [];
-  for (const seat of seats) {
-    if (!seat.studentName) continue;
-    const wrapped = wrapName(seat.studentName, {
-      maxWidth: SEAT_SIZE - 8,
-      maxLines: 3,
-      fontSize: 11 * options.fontScale,
-      minFontSize: 6,
-    });
-    if (wrapped.overflows) overflowingNames.push(seat.studentName);
+  for (const presentation of seats) {
+    const { studentName, seat } = presentation;
+    if (!studentName) continue;
+    const label = displayName(studentName, options.nameStyle);
+    const size = fitSeatNameSize(label, seat, 11 * options.fontScale);
+    if (wrapSeatNameAt(label, seat, size).overflows) overflowingNames.push(studentName);
   }
 
   const bounds = unionBounds([
@@ -137,6 +195,43 @@ function headerText(project: SeatingProject, catalog: MessageCatalog): {
   return { title, subtitle };
 }
 
+/** Page box and the rectangle the drawing is framed into, for a given mode. */
+function planLayout(project: SeatingProject, bare: boolean) {
+  const layout = project.exportLayout;
+  const page = bare
+    ? { width: project.room.width, height: project.room.height }
+    : pageDimensions(layout);
+
+  const margin = bare ? 0 : layout.margin;
+  const headerHeight = !bare && layout.showHeader ? HEADER_HEIGHT : 0;
+  const footerHeight = !bare && layout.showFooter ? FOOTER_HEIGHT : 0;
+
+  return {
+    page,
+    margin,
+    frame: {
+      x: margin,
+      y: margin + headerHeight,
+      width: page.width - margin * 2,
+      height: page.height - margin * 2 - headerHeight - footerHeight,
+    },
+  };
+}
+
+/**
+ * How much the drawing is shrunk to fit the page. Student names are drawn in
+ * room units, so their size on paper is this times their nominal font size —
+ * which is why a room much larger than its furniture prints unreadably.
+ */
+export function planFitScale(project: SeatingProject): number {
+  const { frame } = planLayout(project, false);
+  const view = contentBounds(project, viewOptions(project));
+  return fitTransform(
+    { width: view.width, height: view.height },
+    { width: frame.width, height: frame.height },
+  ).scale;
+}
+
 export function PlanDocument({
   project,
   catalog,
@@ -144,26 +239,20 @@ export function PlanDocument({
   bare = false,
 }: PlanDocumentProps): JSX.Element {
   const layout = project.exportLayout;
-  const page = bare
-    ? { width: project.room.width, height: project.room.height }
-    : pageDimensions(layout);
-
-  const margin = bare ? 0 : layout.margin;
+  const { page, margin, frame } = planLayout(project, bare);
   const showHeader = !bare && layout.showHeader;
   const showFooter = !bare && layout.showFooter;
-
   const headerHeight = showHeader ? HEADER_HEIGHT : 0;
-  const footerHeight = showFooter ? FOOTER_HEIGHT : 0;
 
-  const frame = {
-    x: margin,
-    y: margin + headerHeight,
-    width: page.width - margin * 2,
-    height: page.height - margin * 2 - headerHeight - footerHeight,
-  };
+  const options = viewOptions(project);
+  // Previews render the room rectangle itself as the page, so they frame the
+  // whole room; the printed page zooms to what is actually drawn.
+  const view = bare
+    ? { x: 0, y: 0, width: project.room.width, height: project.room.height }
+    : contentBounds(project, options);
 
   const fit = fitTransform(
-    { width: project.room.width, height: project.room.height },
+    { width: view.width, height: view.height },
     { width: frame.width, height: frame.height },
   );
 
@@ -180,6 +269,13 @@ export function PlanDocument({
     studentNameById,
     lockedStudentIds,
   );
+
+  // One size for every name on the page, so no student's name prints smaller
+  // than the rest just because theirs is longer.
+  const drawOptions: RoomViewOptions = {
+    ...options,
+    nameFontSize: planNameFontSize(seats, options.nameStyle, options.fontScale),
+  };
 
   const { title, subtitle } = headerText(project, catalog);
   const logo = project.branding.showLogo
@@ -245,9 +341,9 @@ export function PlanDocument({
       ) : null}
 
       <g
-        transform={`translate(${frame.x + fit.offsetX} ${frame.y + fit.offsetY}) scale(${fit.scale})`}
+        transform={`translate(${frame.x + fit.offsetX} ${frame.y + fit.offsetY}) scale(${fit.scale}) translate(${-view.x} ${-view.y})`}
       >
-        <RoomLayer room={project.room} seats={seats} options={viewOptions(project)} />
+        <RoomLayer room={project.room} seats={seats} options={drawOptions} />
       </g>
 
       {showFooter ? (

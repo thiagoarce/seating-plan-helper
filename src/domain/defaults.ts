@@ -114,6 +114,7 @@ export function createDefaultExportLayout(): ExportLayout {
     showSeats: true,
     showRegions: false,
     showEmptySeats: true,
+    fitToContent: true,
     fontScale: 1,
     nameStyle: 'full',
     transparentBackground: false,
