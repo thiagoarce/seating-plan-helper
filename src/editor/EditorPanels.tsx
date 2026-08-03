@@ -19,7 +19,7 @@ import type {
 import { useMessages } from '../i18n/useMessages';
 import { createId } from '../shared/id';
 import { NumberField, Panel, SelectField, TextField, Toggle } from '../shared/ui';
-import { buildCenter, buildObject, buildRegion } from '../templates/builders';
+import { buildCenter, buildObject, buildRegion, buildTrapezoidFlower } from '../templates/builders';
 import { parseSelectionKey } from '../app/selection';
 import { applyResize, type RoomCanvasProps } from './RoomCanvas';
 import { rotateBy90 } from './canvasMath';
@@ -88,6 +88,17 @@ export function EditorToolsPanel({
     });
   };
 
+  const addTrapezoidFlower = (): void => {
+    onUpdateRoom((draft) => {
+      const id = createId('center');
+      const ordinal = draft.centers.length + 1;
+      const name = `${t('template.namePrefix.flower')} ${ordinal}`;
+      const probe = buildTrapezoidFlower({ id, x: 0, y: 0, name });
+      const spot = dropSpot(draft, probe);
+      draft.centers.push(buildTrapezoidFlower({ id, x: spot.x, y: spot.y, name }));
+    });
+  };
+
   const addObject = (type: RoomObjectType): void => {
     onUpdateRoom((draft) => {
       const size = DEFAULT_OBJECT_SIZE[type];
@@ -113,6 +124,9 @@ export function EditorToolsPanel({
             {t('editor.add.center', { count })}
           </button>
         ))}
+        <button type="button" onClick={addTrapezoidFlower}>
+          {t('editor.add.trapezoidFlower')}
+        </button>
       </div>
 
       <SelectField

@@ -10,7 +10,7 @@
 
 import { Fragment } from 'react';
 import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react';
-import { SEAT_SIZE } from '../domain/defaults';
+import { SEAT_DEPTH, SEAT_SIZE, SEAT_WIDTH } from '../domain/defaults';
 import { rotatedBounds, seatWorldPosition, seatWorldRotation } from '../domain/geometry';
 import type {
   ExportLayout,
@@ -283,11 +283,14 @@ export function SeatShape({
   if (!seat.enabled) return null;
   if (!studentName && !options.showEmptySeats) return null;
 
-  const half = SEAT_SIZE / 2;
   const isTrapezoid = seat.deskShape === 'trapezoid';
+  const halfWidth = SEAT_WIDTH / 2;
+  // Trapezoid desks keep their square footprint; a plain desk is a real
+  // rectangle — twice as wide (side-to-side) as it is deep (front-to-back).
+  const halfHeight = isTrapezoid ? SEAT_SIZE / 2 : SEAT_DEPTH / 2;
   const label = studentName ? displayName(studentName, options.nameStyle) : '';
   const wrapped = wrapName(label, {
-    maxWidth: SEAT_SIZE - 8,
+    maxWidth: SEAT_WIDTH - 8,
     maxLines: 3,
     fontSize: NAME_BASE_FONT_SIZE * options.fontScale,
     minFontSize: NAME_MIN_FONT_SIZE,
@@ -324,15 +327,15 @@ export function SeatShape({
         <g transform={rotation ? `rotate(${rotation} ${x} ${y})` : undefined}>
           <polygon
             className="seat-rect"
-            points={trapezoidPoints(x, y, half)}
+            points={trapezoidPoints(x, y, halfWidth)}
             fill={studentName ? 'var(--seat-fill)' : 'var(--seat-empty-fill)'}
             stroke="var(--seat-stroke)"
             strokeWidth={1.5}
           />
           <rect
-            x={x - half + 8}
-            y={y + half - 5}
-            width={SEAT_SIZE - 16}
+            x={x - halfWidth + 8}
+            y={y + halfHeight - 5}
+            width={SEAT_WIDTH - 16}
             height={3}
             rx={1.5}
             fill="var(--seat-stroke)"
@@ -340,13 +343,16 @@ export function SeatShape({
           />
         </g>
       ) : (
-        <>
+        // `rotation` is combined center+seat rotation; a plain desk is not
+        // square anymore, so it needs the same rotate-around-centre treatment
+        // as the trapezoid for its facing direction to show correctly.
+        <g transform={rotation ? `rotate(${rotation} ${x} ${y})` : undefined}>
           <rect
             className="seat-rect"
-            x={x - half}
-            y={y - half}
-            width={SEAT_SIZE}
-            height={SEAT_SIZE}
+            x={x - halfWidth}
+            y={y - halfHeight}
+            width={SEAT_WIDTH}
+            height={SEAT_DEPTH}
             rx={SEAT_CORNER}
             fill={studentName ? 'var(--seat-fill)' : 'var(--seat-empty-fill)'}
             stroke="var(--seat-stroke)"
@@ -354,23 +360,23 @@ export function SeatShape({
           />
           {/* Chair-back marker: shows which way the seat faces without needing colour. */}
           <rect
-            x={x - half + 10}
-            y={y + half - 5}
-            width={SEAT_SIZE - 20}
+            x={x - halfWidth + 10}
+            y={y + halfHeight - 5}
+            width={SEAT_WIDTH - 20}
             height={3}
             rx={1.5}
             fill="var(--seat-stroke)"
             opacity={0.7}
           />
-        </>
+        </g>
       )}
       {locked ? (
-        <text x={x + half - 9} y={y - half + 13} fontSize={10} fill="var(--text-muted)">
+        <text x={x + halfWidth - 9} y={y - halfHeight + 13} fontSize={10} fill="var(--text-muted)">
           ✱
         </text>
       ) : null}
       {violating ? (
-        <text x={x - half + 4} y={y - half + 13} fontSize={11} fill="var(--danger)">
+        <text x={x - halfWidth + 4} y={y - halfHeight + 13} fontSize={11} fill="var(--danger)">
           !
         </text>
       ) : null}

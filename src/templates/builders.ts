@@ -5,7 +5,7 @@
  * be moved or rotated later without rewriting its seats (TECHNICAL_SPEC §8).
  */
 
-import { SEAT_SIZE } from '../domain/defaults';
+import { SEAT_DEPTH, SEAT_SIZE, SEAT_WIDTH } from '../domain/defaults';
 import type {
   Region,
   RegionGeometry,
@@ -38,8 +38,8 @@ export function centerFootprint(seatCount: number, columns: number): {
 } {
   const rows = Math.ceil(seatCount / columns);
   return {
-    width: columns * SEAT_SIZE + (columns - 1) * SEAT_GAP + CENTER_PADDING * 2,
-    height: rows * SEAT_SIZE + (rows - 1) * SEAT_GAP + CENTER_PADDING * 2,
+    width: columns * SEAT_WIDTH + (columns - 1) * SEAT_GAP + CENTER_PADDING * 2,
+    height: rows * SEAT_DEPTH + (rows - 1) * SEAT_GAP + CENTER_PADDING * 2,
     rows,
   };
 }
@@ -57,8 +57,8 @@ export function buildCenter(spec: CenterSpec): SeatingCenter {
       centerId: spec.id,
       // Offsets point at the seat's centre, which is what region membership and
       // all distance measures use.
-      x: CENTER_PADDING + column * (SEAT_SIZE + SEAT_GAP) + SEAT_SIZE / 2,
-      y: CENTER_PADDING + row * (SEAT_SIZE + SEAT_GAP) + SEAT_SIZE / 2,
+      x: CENTER_PADDING + column * (SEAT_WIDTH + SEAT_GAP) + SEAT_WIDTH / 2,
+      y: CENTER_PADDING + row * (SEAT_DEPTH + SEAT_GAP) + SEAT_DEPTH / 2,
       rotation: 0,
       enabled: true,
       // A local, 1-based number identifies the seat within its group so the

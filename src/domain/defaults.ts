@@ -18,8 +18,15 @@ export const DEFAULT_ROOM_WIDTH = 1200;
 export const DEFAULT_ROOM_HEIGHT = 800;
 export const DEFAULT_GRID_SIZE = 20;
 
-/** Standard footprint of a single-seat desk, in logical units. */
-export const SEAT_SIZE = 60;
+/**
+ * Standard footprint of a single-seat desk, in logical units. Real desks are
+ * rectangular, not square: side-to-side (`SEAT_WIDTH`) is twice front-to-back
+ * (`SEAT_DEPTH`). `SEAT_SIZE` stays as the wider dimension for call sites that
+ * only need a rough footprint (hit-test radius, minimum sizes, fallbacks).
+ */
+export const SEAT_WIDTH = 60;
+export const SEAT_DEPTH = 30;
+export const SEAT_SIZE = SEAT_WIDTH;
 
 export interface DistancePresets {
   near: number;
