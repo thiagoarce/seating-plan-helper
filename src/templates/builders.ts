@@ -264,6 +264,8 @@ export interface TrapezoidRowSpec {
   /** Number of desks in the row. */
   count: number;
   name?: string;
+  /** e.g. 90 to turn the whole row perpendicular to the board. */
+  rotation?: Rotation;
 }
 
 /**
@@ -296,7 +298,7 @@ export function buildTrapezoidRow(spec: TrapezoidRowSpec): SeatingCenter {
     y: spec.y,
     width,
     height,
-    rotation: 0,
+    rotation: spec.rotation ?? 0,
     seats,
   };
 }

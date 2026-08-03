@@ -11,26 +11,15 @@ import { DEFAULT_GRID_SIZE, DEFAULT_ROOM_HEIGHT, DEFAULT_ROOM_WIDTH } from '../d
 import type { RoomDefinition, RoomTemplate } from '../domain/types';
 import type { MessageCatalog } from '../i18n/format';
 import { formatMessage } from '../i18n/format';
-import {
-  buildCenter,
-  buildCenterGrid,
-  buildDepthBands,
-  buildObject,
-  buildTrapezoidFlower,
-  buildTrapezoidHexagon,
-  buildTrapezoidRow,
-} from './builders';
+import { buildCenterGrid, buildDepthBands, buildObject, buildTrapezoidRow } from './builders';
 
-export type TemplateId =
-  | 'blank'
-  | 'rows'
-  | 'pairs'
-  | 'groups-of-four'
-  | 'mixed'
-  | 'organic-islands'
-  | 'trapezoid-flower'
-  | 'trapezoid-hexagon'
-  | 'trapezoid-parallelogram';
+/**
+ * Curated to the arrangements teachers actually reach for by grade band
+ * (PRODUCT_SPEC §5.1): trapezoid groups of 4 turned perpendicular to the
+ * board for younger grades, rectangular blocks of 4 for middle grades, and
+ * pairs or aligned rows for older students.
+ */
+export type TemplateId = 'blank' | 'rows' | 'pairs' | 'groups-of-four' | 'trapezoid-groups';
 
 export interface TemplateDescriptor {
   id: TemplateId;
@@ -129,115 +118,37 @@ function groupsOfFourRoom(catalog: MessageCatalog): RoomDefinition {
   return room;
 }
 
-/** A U-shape of pairs around two islands of four, for discussion-style rooms. */
-function mixedRoom(catalog: MessageCatalog): RoomDefinition {
-  const room = baseRoom(catalog);
-  room.centers = [
-    buildCenter({ id: 'left1', name: 'A', x: 120, y: 220, seatCount: 2, columns: 1 }),
-    buildCenter({ id: 'left2', name: 'B', x: 120, y: 420, seatCount: 2, columns: 1 }),
-    buildCenter({ id: 'island1', name: 'C', x: 380, y: 250, seatCount: 4, columns: 2 }),
-    buildCenter({ id: 'island2', name: 'D', x: 640, y: 250, seatCount: 4, columns: 2 }),
-    buildCenter({ id: 'right1', name: 'E', x: 960, y: 220, seatCount: 2, columns: 1 }),
-    buildCenter({ id: 'right2', name: 'F', x: 960, y: 420, seatCount: 2, columns: 1 }),
-    buildCenter({ id: 'back1', name: 'G', x: 380, y: 560, seatCount: 3, columns: 3 }),
-    buildCenter({ id: 'back2', name: 'H', x: 700, y: 560, seatCount: 3, columns: 3 }),
-  ];
-  return room;
-}
-
 /**
- * Six islands of four placed at hand-picked, non-grid positions, matching how
- * real classrooms actually get arranged (islands nudged into whatever gaps
- * the room's fixed furniture leaves) rather than a perfectly even grid.
+ * Groups of 4 trapezoid desks (§ `buildTrapezoidRow`), each block turned 90°
+ * so it stands perpendicular to the board rather than running along it — the
+ * arrangement younger grades' trapezoid tables actually get pushed into.
  */
-function organicIslandsRoom(catalog: MessageCatalog): RoomDefinition {
+function trapezoidGroupsRoom(catalog: MessageCatalog): RoomDefinition {
   const room = baseRoom(catalog);
-  const namePrefix = formatMessage(catalog, 'template.namePrefix.island');
-  const positions = [
-    { x: 90, y: 160 },
-    { x: 330, y: 110 },
-    { x: 600, y: 170 },
-    { x: 860, y: 260 },
-    { x: 200, y: 430 },
-    { x: 520, y: 480 },
+  const namePrefix = formatMessage(catalog, 'template.namePrefix.group');
+  // Unrotated footprint of a 4-desk row: width ~207.8, height 80. Positions
+  // are chosen so the *rotated* (90°) bounding box — 80 wide, ~207.8 tall —
+  // clears the board/teacher desk up top and the door at bottom-right.
+  const centers = [
+    { x: 300, y: 250 },
+    { x: 600, y: 250 },
+    { x: 900, y: 250 },
+    { x: 300, y: 570 },
+    { x: 600, y: 570 },
+    { x: 900, y: 570 },
   ];
-  room.centers = positions.map((position, index) =>
-    buildCenter({
-      id: `isl${index + 1}`,
+  room.centers = centers.map((center, index) => {
+    const width = 207.8;
+    const height = 80;
+    return buildTrapezoidRow({
+      id: `tg${index + 1}`,
       name: `${namePrefix} ${index + 1}`,
-      x: position.x,
-      y: position.y,
-      seatCount: 4,
-      columns: 2,
-    }),
-  );
-  return room;
-}
-
-/**
- * Trapezoid-desk "flower" pods (§ `buildTrapezoidFlower`), the closest
- * quarter-turn-compatible approximation of hexagonal collaborative desk sets.
- */
-function trapezoidFlowerRoom(catalog: MessageCatalog): RoomDefinition {
-  const room = baseRoom(catalog);
-  const namePrefix = formatMessage(catalog, 'template.namePrefix.flower');
-  const positions = [
-    { x: 200, y: 180 },
-    { x: 600, y: 180 },
-    { x: 200, y: 480 },
-    { x: 600, y: 480 },
-    { x: 1000, y: 330 },
-  ];
-  room.centers = positions.map((position, index) =>
-    buildTrapezoidFlower({
-      id: `flower${index + 1}`,
-      name: `${namePrefix} ${index + 1}`,
-      x: position.x,
-      y: position.y,
-    }),
-  );
-  return room;
-}
-
-/** Four hexagon pods (§ `buildTrapezoidHexagon`) — true 60° trapezoid fans. */
-function trapezoidHexagonRoom(catalog: MessageCatalog): RoomDefinition {
-  const room = baseRoom(catalog);
-  const namePrefix = formatMessage(catalog, 'template.namePrefix.hexagon');
-  const positions = [
-    { x: 60, y: 140 },
-    { x: 620, y: 140 },
-    { x: 60, y: 460 },
-    { x: 620, y: 460 },
-  ];
-  room.centers = positions.map((position, index) =>
-    buildTrapezoidHexagon({
-      id: `hex${index + 1}`,
-      name: `${namePrefix} ${index + 1}`,
-      x: position.x,
-      y: position.y,
-    }),
-  );
-  return room;
-}
-
-/**
- * Rows of trapezoid desks tiled into parallelogram-shaped clusters
- * (§ `buildTrapezoidRow`) — the arrangement teachers reach for more often
- * than the flower or hexagon fans.
- */
-function trapezoidParallelogramRoom(catalog: MessageCatalog): RoomDefinition {
-  const room = baseRoom(catalog);
-  const namePrefix = formatMessage(catalog, 'template.namePrefix.trapezoidRow');
-  const ys = [160, 300, 440, 580];
-  room.centers = ys.map((y, index) =>
-    buildTrapezoidRow({
-      id: `prow${index + 1}`,
-      name: `${namePrefix} ${index + 1}`,
-      x: 475,
-      y,
-      count: 5,
-    }),
-  );
+      x: center.x - width / 2,
+      y: center.y - height / 2,
+      count: 4,
+      rotation: 90,
+    });
+  });
   return room;
 }
 
@@ -246,11 +157,7 @@ const BUILDERS: Record<TemplateId, (catalog: MessageCatalog) => RoomDefinition> 
   rows: rowsRoom,
   pairs: pairsRoom,
   'groups-of-four': groupsOfFourRoom,
-  mixed: mixedRoom,
-  'organic-islands': organicIslandsRoom,
-  'trapezoid-flower': trapezoidFlowerRoom,
-  'trapezoid-hexagon': trapezoidHexagonRoom,
-  'trapezoid-parallelogram': trapezoidParallelogramRoom,
+  'trapezoid-groups': trapezoidGroupsRoom,
 };
 
 export const TEMPLATE_DESCRIPTORS: TemplateDescriptor[] = [
@@ -273,34 +180,10 @@ export const TEMPLATE_DESCRIPTORS: TemplateDescriptor[] = [
     seatCount: 25,
   },
   {
-    id: 'mixed',
-    nameKey: 'template.mixed.name',
-    descriptionKey: 'template.mixed.description',
-    seatCount: 22,
-  },
-  {
-    id: 'organic-islands',
-    nameKey: 'template.organicIslands.name',
-    descriptionKey: 'template.organicIslands.description',
+    id: 'trapezoid-groups',
+    nameKey: 'template.trapezoidGroups.name',
+    descriptionKey: 'template.trapezoidGroups.description',
     seatCount: 24,
-  },
-  {
-    id: 'trapezoid-flower',
-    nameKey: 'template.trapezoidFlower.name',
-    descriptionKey: 'template.trapezoidFlower.description',
-    seatCount: 20,
-  },
-  {
-    id: 'trapezoid-hexagon',
-    nameKey: 'template.trapezoidHexagon.name',
-    descriptionKey: 'template.trapezoidHexagon.description',
-    seatCount: 24,
-  },
-  {
-    id: 'trapezoid-parallelogram',
-    nameKey: 'template.trapezoidParallelogram.name',
-    descriptionKey: 'template.trapezoidParallelogram.description',
-    seatCount: 20,
   },
   {
     id: 'blank',
