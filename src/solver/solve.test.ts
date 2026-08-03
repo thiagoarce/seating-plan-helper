@@ -104,6 +104,62 @@ describe('solve — required constraints', () => {
     }
   });
 
+  it("solves a groupMode 'all' rule by spreading the whole group apart", () => {
+    const project = createTestProject({
+      studentCount: 6,
+      rules: [
+        makeRule({
+          id: 'r1',
+          kind: 'pairDifferentCenter',
+          severity: 'required',
+          studentIds: ['st1', 'st2', 'st3'],
+          groupMode: 'all',
+        }),
+      ],
+    });
+
+    const result = solve(project);
+    expect(result.foundValid).toBe(true);
+
+    const context = contextFor(project);
+    for (const suggestion of result.suggestions) {
+      const placement = placementOf(suggestion.assignments);
+      const centers = ['st1', 'st2', 'st3'].map(
+        (id) => context.index.seatById.get(placement.get(id)!)?.center.id,
+      );
+      expect(new Set(centers).size).toBe(3);
+    }
+  });
+
+  it("solves a groupMode 'any' rule by keeping just one pair apart", () => {
+    const project = createTestProject({
+      studentCount: 6,
+      rules: [
+        makeRule({
+          id: 'r1',
+          kind: 'pairDifferentCenter',
+          severity: 'required',
+          studentIds: ['st1', 'st2', 'st3'],
+          groupMode: 'any',
+        }),
+      ],
+    });
+
+    const result = solve(project);
+    expect(result.foundValid).toBe(true);
+
+    const context = contextFor(project);
+    for (const suggestion of result.suggestions) {
+      const placement = placementOf(suggestion.assignments);
+      const centers = ['st1', 'st2', 'st3'].map(
+        (id) => context.index.seatById.get(placement.get(id)!)?.center.id,
+      );
+      // 'any' only forbids every pair matching, i.e. all three sharing one
+      // center; two sharing while the third differs is perfectly valid.
+      expect(new Set(centers).size).toBeGreaterThanOrEqual(2);
+    }
+  });
+
   it('every returned valid plan really satisfies all required rules', () => {
     const project = createTestProject({
       studentCount: 6,
@@ -341,8 +397,8 @@ describe('solve — unsatisfiable problems', () => {
     expect(result.blockers.some((item) => item.id === 'solver.blocker.notEnoughSeats')).toBe(true);
   });
 
-  it('never reports a valid plan when required rules cannot all hold', () => {
-    // Three students must share one center, but every center has two seats.
+  it("never reports a valid plan when a groupMode 'all' rule cannot hold for everyone", () => {
+    // All three students must share one center, but every center has two seats.
     const project = createTestProject({
       studentCount: 4,
       rules: [
@@ -351,6 +407,7 @@ describe('solve — unsatisfiable problems', () => {
           kind: 'pairSameCenter',
           severity: 'required',
           studentIds: ['st1', 'st2', 'st3'],
+          groupMode: 'all',
         }),
       ],
     });
@@ -359,6 +416,26 @@ describe('solve — unsatisfiable problems', () => {
     expect(result.foundValid).toBe(false);
     expect(result.suggestions.every((item) => item.score.valid === false)).toBe(true);
     expect(result.notes.some((note) => note.id === 'solver.note.noFeasiblePlan')).toBe(true);
+  });
+
+  it("solves a groupMode 'any' rule by satisfying just one pair of the set", () => {
+    // Only one pair needs to share a center; two seats per center makes this
+    // easy, unlike the 'all' variant above.
+    const project = createTestProject({
+      studentCount: 4,
+      rules: [
+        makeRule({
+          id: 'r1',
+          kind: 'pairSameCenter',
+          severity: 'required',
+          studentIds: ['st1', 'st2', 'st3'],
+          groupMode: 'any',
+        }),
+      ],
+    });
+
+    const result = solve(project);
+    expect(result.foundValid).toBe(true);
   });
 
   it('names the rules that most often blocked the search', () => {
@@ -370,6 +447,7 @@ describe('solve — unsatisfiable problems', () => {
           kind: 'pairSameCenter',
           severity: 'required',
           studentIds: ['st1', 'st2', 'st3'],
+          groupMode: 'all',
         }),
       ],
     });

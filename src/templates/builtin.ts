@@ -78,6 +78,7 @@ function rowsRoom(catalog: MessageCatalog): RoomDefinition {
     gapX: 90,
     gapY: 40,
     idPrefix: 'd',
+    namePrefix: formatMessage(catalog, 'template.namePrefix.desk'),
   });
   return room;
 }
@@ -94,6 +95,7 @@ function pairsRoom(catalog: MessageCatalog): RoomDefinition {
     gapX: 120,
     gapY: 50,
     idPrefix: 'p',
+    namePrefix: formatMessage(catalog, 'template.namePrefix.pair'),
   });
   return room;
 }
@@ -109,6 +111,7 @@ function groupsOfFourRoom(catalog: MessageCatalog): RoomDefinition {
     originY: 220,
     gapX: 160,
     gapY: 120,
+    namePrefix: formatMessage(catalog, 'template.namePrefix.group'),
     idPrefix: 'q',
   });
   return room;

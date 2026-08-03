@@ -61,6 +61,11 @@ export function buildCenter(spec: CenterSpec): SeatingCenter {
       y: CENTER_PADDING + row * (SEAT_SIZE + SEAT_GAP) + SEAT_SIZE / 2,
       rotation: 0,
       enabled: true,
+      // A local, 1-based number identifies the seat within its group so the
+      // fixed-seat rule picker and the roster's seat tag never have to fall
+      // back to the raw seat id (shared/labels.ts combines this with the
+      // center's own name, e.g. "Grupo 2 · 3").
+      label: `${position + 1}`,
     };
   });
 
@@ -86,6 +91,8 @@ export interface GridSpec {
   gapX: number;
   gapY: number;
   idPrefix?: string;
+  /** Prefixes each center's default name, e.g. "Fileira 1", "Dupla 1". */
+  namePrefix?: string;
 }
 
 /** Lays out a regular grid of identical seat groups. */
@@ -101,7 +108,7 @@ export function buildCenterGrid(spec: GridSpec): SeatingCenter[] {
       centers.push(
         buildCenter({
           id: `${prefix}${index}`,
-          name: `${index}`,
+          name: spec.namePrefix ? `${spec.namePrefix} ${index}` : `${index}`,
           x: spec.originX + column * (width + spec.gapX),
           y: spec.originY + row * (height + spec.gapY),
           seatCount: spec.seatsPerCenter,

@@ -11,6 +11,7 @@ import { useMessages } from '../i18n/useMessages';
 import { normalizeForComparison, rosterToCsv } from '../persistence/csv';
 import { downloadText, planFilename } from '../export/render';
 import type { SeatAssignment, SeatingProject } from '../domain/types';
+import { seatDisplayLabel } from '../shared/labels';
 import { Notice, Panel } from '../shared/ui';
 import { ImportDialog } from './ImportDialog';
 
@@ -32,7 +33,7 @@ function seatLabelFor(project: SeatingProject, assignment: SeatAssignment | unde
   if (!assignment) return '';
   for (const center of project.room.centers) {
     const seat = center.seats.find((item) => item.id === assignment.seatId);
-    if (seat) return seat.label ?? center.name ?? center.id;
+    if (seat) return seatDisplayLabel(center, seat);
   }
   return '';
 }

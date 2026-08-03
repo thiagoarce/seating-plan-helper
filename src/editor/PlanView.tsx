@@ -62,7 +62,7 @@ export function PlanView(props: PlanViewProps): JSX.Element {
   );
 
   const options = useMemo(
-    () => ({ ...DEFAULT_ROOM_VIEW_OPTIONS, emptySeatLabel: undefined }),
+    () => ({ ...DEFAULT_ROOM_VIEW_OPTIONS, showCenterLabels: true, showSeatLabels: true }),
     [],
   );
 

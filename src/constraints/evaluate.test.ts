@@ -268,11 +268,12 @@ describe('relationship rules', () => {
     ).toBe('violated');
   });
 
-  it('applies the predicate to every pair of a larger set', () => {
+  it("groupMode 'all' requires every pair in a larger set to hold", () => {
     const differentCenters = rule<SeatingRule>({
       kind: 'pairDifferentCenter',
       severity: 'required',
       studentIds: ['st1', 'st2', 'st3'],
+      groupMode: 'all',
     });
     const allApart = placement([
       ['st1', 'a1'],
@@ -289,6 +290,53 @@ describe('relationship rules', () => {
     const result = evaluateRule(differentCenters, twoTogether, context);
     expect(result.status).toBe('violated');
     expect(result.involvedStudentIds.sort()).toEqual(['st1', 'st2']);
+  });
+
+  it("groupMode 'any' is satisfied once a single pair holds, and defaults when unset", () => {
+    const differentCenters = rule<SeatingRule>({
+      kind: 'pairDifferentCenter',
+      severity: 'required',
+      studentIds: ['st1', 'st2', 'st3'],
+      // groupMode omitted: 'any' is the default.
+    });
+
+    // Two together, one elsewhere: st1/st3 (or st2/st3) already differ, so
+    // 'any' is satisfied even though 'all' would not be.
+    const twoTogether = placement([
+      ['st1', 'a1'],
+      ['st2', 'a2'],
+      ['st3', 'c1'],
+    ]);
+    expect(evaluateRule(differentCenters, twoTogether, context).status).toBe('satisfied');
+
+    // Only violated when literally every pair fails, i.e. everyone shares a
+    // center.
+    const allTogether = placement([
+      ['st1', 'a1'],
+      ['st2', 'a1'],
+      ['st3', 'a1'],
+    ]);
+    const violated = evaluateRule(differentCenters, allTogether, context);
+    expect(violated.status).toBe('violated');
+    expect(violated.involvedStudentIds.sort()).toEqual(['st1', 'st2', 'st3']);
+  });
+
+  it("groupMode 'any' vs 'all' agree for exactly two students", () => {
+    const allMode = rule<SeatingRule>({
+      kind: 'pairDifferentCenter',
+      severity: 'required',
+      studentIds: ['st1', 'st2'],
+      groupMode: 'all',
+    });
+    const anyMode = { ...allMode, groupMode: 'any' as const };
+
+    const apart = placement([['st1', 'a1'], ['st2', 'b1']]);
+    expect(evaluateRule(allMode, apart, context).status).toBe('satisfied');
+    expect(evaluateRule(anyMode, apart, context).status).toBe('satisfied');
+
+    const together = placement([['st1', 'a1'], ['st2', 'a2']]);
+    expect(evaluateRule(allMode, together, context).status).toBe('violated');
+    expect(evaluateRule(anyMode, together, context).status).toBe('violated');
   });
 
   it('is not applicable while any member of the set is unplaced', () => {

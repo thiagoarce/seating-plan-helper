@@ -22,6 +22,7 @@ import type {
   TextLabel,
 } from '../domain/types';
 import { displayName, wrapName } from '../export/page';
+import { centerDisplayName } from './labels';
 
 export interface SeatPresentation {
   seat: Seat;
@@ -42,7 +43,14 @@ export interface RoomViewOptions {
   showCenterOutlines: boolean;
   nameStyle: ExportLayout['nameStyle'];
   fontScale: number;
-  emptySeatLabel?: string;
+  /**
+   * Small on-canvas captions that help while building the room — the center's
+   * own name, and each empty seat's local number. Off by default because the
+   * exported/printed plan should show only student names, not internal
+   * bookkeeping; the room editor turns these on explicitly.
+   */
+  showCenterLabels?: boolean;
+  showSeatLabels?: boolean;
 }
 
 export const DEFAULT_ROOM_VIEW_OPTIONS: RoomViewOptions = {
@@ -188,10 +196,13 @@ export function ObjectShape({
 export function CenterOutline({
   center,
   selected,
+  label,
   onPointerDown,
 }: {
   center: SeatingCenter;
   selected?: boolean;
+  /** Caption shown at the top-left corner, e.g. the center's own name. */
+  label?: string;
   onPointerDown?: (event: PointerEvent<SVGGElement>) => void;
 }): JSX.Element {
   const bounds = rotatedBounds(center, center.rotation);
@@ -212,6 +223,18 @@ export function CenterOutline({
         stroke={selected ? 'var(--accent)' : 'var(--border)'}
         strokeWidth={selected ? 3 : 1.5}
       />
+      {label ? (
+        <text
+          className="seat-name"
+          x={bounds.x + 6}
+          y={bounds.y + 13}
+          fontSize={10}
+          fill="var(--text-muted)"
+          pointerEvents="none"
+        >
+          {label}
+        </text>
+      ) : null}
     </g>
   );
 }
@@ -320,7 +343,7 @@ export function SeatShape({
             </tspan>
           ))}
         </text>
-      ) : options.emptySeatLabel ? (
+      ) : options.showSeatLabels && seat.label ? (
         <text
           className="seat-name"
           x={x}
@@ -329,7 +352,7 @@ export function SeatShape({
           fontSize={9}
           fill="var(--text-muted)"
         >
-          {options.emptySeatLabel}
+          {seat.label}
         </text>
       ) : null}
     </g>
@@ -378,7 +401,13 @@ export function RoomLayer({ room, seats, options }: RoomLayerProps): JSX.Element
         : null}
 
       {options.showCenterOutlines
-        ? room.centers.map((center) => <CenterOutline key={center.id} center={center} />)
+        ? room.centers.map((center) => (
+            <CenterOutline
+              key={center.id}
+              center={center}
+              label={options.showCenterLabels ? centerDisplayName(center) : undefined}
+            />
+          ))
         : null}
 
       {options.showSeats

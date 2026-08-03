@@ -159,6 +159,8 @@ const ruleBaseShape = {
 /** Relationship rules need at least two distinct students to mean anything. */
 const studentSetSchema = z.array(idSchema).min(2);
 
+const groupModeSchema = z.enum(['all', 'any']).optional();
+
 export const seatingRuleSchema = z.discriminatedUnion('kind', [
   z.object({
     ...ruleBaseShape,
@@ -196,34 +198,40 @@ export const seatingRuleSchema = z.discriminatedUnion('kind', [
     ...ruleBaseShape,
     kind: z.literal('pairSameCenter'),
     studentIds: studentSetSchema,
+    groupMode: groupModeSchema,
   }),
   z.object({
     ...ruleBaseShape,
     kind: z.literal('pairDifferentCenter'),
     studentIds: studentSetSchema,
+    groupMode: groupModeSchema,
   }),
   z.object({
     ...ruleBaseShape,
     kind: z.literal('pairNotAdjacentCenters'),
     studentIds: studentSetSchema,
+    groupMode: groupModeSchema,
   }),
   z.object({
     ...ruleBaseShape,
     kind: z.literal('pairNear'),
     studentIds: studentSetSchema,
     maxDistance: z.number().nonnegative(),
+    groupMode: groupModeSchema,
   }),
   z.object({
     ...ruleBaseShape,
     kind: z.literal('pairFar'),
     studentIds: studentSetSchema,
     minDistance: z.number().nonnegative(),
+    groupMode: groupModeSchema,
   }),
   z.object({
     ...ruleBaseShape,
     kind: z.literal('pairMinimumDistance'),
     studentIds: studentSetSchema,
     minDistance: z.number().nonnegative(),
+    groupMode: groupModeSchema,
   }),
 ]);
 

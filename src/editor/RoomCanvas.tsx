@@ -25,6 +25,7 @@ import {
   TextLabelShape,
 } from '../shared/RoomGraphics';
 import type { RoomViewOptions, SeatPresentation } from '../shared/RoomGraphics';
+import { centerDisplayName } from '../shared/labels';
 import { parseSelectionKey, selectionKey } from '../app/selection';
 import type { SelectableKind } from '../app/selection';
 import {
@@ -503,6 +504,7 @@ export function RoomCanvas(props: RoomCanvasProps): JSX.Element {
                 <CenterOutline
                   center={center}
                   selected={isSelected('center', center.id)}
+                  label={options.showCenterLabels ? centerDisplayName(center) : undefined}
                   {...(mode === 'edit'
                     ? { onPointerDown: (event) => onItemPointerDown(event, 'center', center.id) }
                     : {})}

@@ -190,37 +190,58 @@ export interface StudentFixedSeatRule extends RuleBase {
   seatId: string;
 }
 
+/**
+ * How a group rule combines the pairwise checks across a `studentIds` set of
+ * more than two students:
+ *
+ * - `'all'`: every pair must satisfy the predicate (e.g. every pair in
+ *   different centers — the whole group ends up mutually spread apart).
+ * - `'any'`: at least one pair must satisfy it (e.g. not everyone crammed into
+ *   the same center — a looser "don't let them all end up together" check).
+ *
+ * Meaningless for exactly two students, where both reduce to the same pair.
+ * Defaults to `'any'` when absent, since that reads more naturally from the
+ * rule's plain-language label (PRODUCT_SPEC §5.5 group rules).
+ */
+export type GroupMode = 'all' | 'any';
+
 export interface PairSameCenterRule extends RuleBase {
   kind: 'pairSameCenter';
   studentIds: string[];
+  groupMode?: GroupMode;
 }
 
 export interface PairDifferentCenterRule extends RuleBase {
   kind: 'pairDifferentCenter';
   studentIds: string[];
+  groupMode?: GroupMode;
 }
 
 export interface PairNotAdjacentCentersRule extends RuleBase {
   kind: 'pairNotAdjacentCenters';
   studentIds: string[];
+  groupMode?: GroupMode;
 }
 
 export interface PairNearRule extends RuleBase {
   kind: 'pairNear';
   studentIds: string[];
   maxDistance: number;
+  groupMode?: GroupMode;
 }
 
 export interface PairFarRule extends RuleBase {
   kind: 'pairFar';
   studentIds: string[];
   minDistance: number;
+  groupMode?: GroupMode;
 }
 
 export interface PairMinimumDistanceRule extends RuleBase {
   kind: 'pairMinimumDistance';
   studentIds: string[];
   minDistance: number;
+  groupMode?: GroupMode;
 }
 
 export type SeatingRule =

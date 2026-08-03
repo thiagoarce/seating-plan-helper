@@ -4,19 +4,20 @@
  *
  * Required rules become predicates:
  *  - unary constraints prune each student's candidate seat list up front;
- *  - binary constraints are checked incrementally during backtracking.
+ *  - group constraints are checked once every student they involve has a
+ *    seat, whether tentative (during backtracking) or final.
  *
  * Preferred rules are not compiled here. They are scored through the shared
  * evaluator so that "valid" and "scored" always mean the same thing in the
  * solver and in the editor.
  */
 
-import { studentPairs } from '../constraints/evaluate';
 import type { MessageDescriptor } from '../constraints/evaluation';
 import type { RoomIndex } from '../domain/room';
 import { buildRoomIndex } from '../domain/room';
 import type {
   GenerationSettings,
+  GroupMode,
   SeatAssignment,
   SeatingProject,
   SeatingRule,
@@ -29,11 +30,20 @@ export interface UnaryConstraint {
   allows: (seatId: string) => boolean;
 }
 
-export interface BinaryConstraint {
+/**
+ * A required relationship rule over a `studentIds` set, compiled to a single
+ * pairwise predicate plus how to combine it across the group (§ `GroupMode`).
+ *
+ * This is checked as one unit once every member of `studentIds` has a seat
+ * (tentative or fixed), rather than decomposed into independent per-pair
+ * constraints — that decomposition would silently force `'all'` semantics on
+ * an `'any'` rule, since each pair would be pruned as mandatory on its own.
+ */
+export interface GroupConstraint {
   ruleId: string;
-  a: string;
-  b: string;
-  holds: (seatA: string, seatB: string) => boolean;
+  studentIds: readonly string[];
+  mode: GroupMode;
+  pairHolds: (seatA: string, seatB: string) => boolean;
 }
 
 export interface SolverProblem {
@@ -55,8 +65,8 @@ export interface SolverProblem {
   freeStudents: Student[];
   /** Candidate seats per free student, after unary pruning. */
   candidates: Map<string, string[]>;
-  /** Binary required constraints indexed by each participating student. */
-  binaryByStudent: Map<string, BinaryConstraint[]>;
+  /** Required group constraints indexed by each participating student. */
+  groupConstraintsByStudent: Map<string, GroupConstraint[]>;
   /** Problems detected before the search even starts. */
   blockers: MessageDescriptor[];
 }
@@ -131,35 +141,41 @@ function buildUnaryConstraints(
 }
 
 /**
- * Relationship rules over three or more students decompose into one binary
- * constraint per pair, which is what makes forward checking cheap.
+ * Compiles each required relationship rule into one `GroupConstraint`. Kept
+ * as a single unit per rule (not one per pair) so `'any'` mode — satisfied by
+ * a single pair — cannot be accidentally tightened into `'all'` by pruning
+ * each pair independently.
  */
-function buildBinaryConstraints(
+function buildGroupConstraints(
   rules: readonly SeatingRule[],
   index: RoomIndex,
-): BinaryConstraint[] {
-  const constraints: BinaryConstraint[] = [];
+): GroupConstraint[] {
+  const constraints: GroupConstraint[] = [];
 
   for (const rule of rules) {
     if (!rule.enabled || rule.severity !== 'required') continue;
 
-    let holds: ((seatA: string, seatB: string) => boolean) | null = null;
+    let pairHolds: ((seatA: string, seatB: string) => boolean) | null = null;
     let studentIds: readonly string[] = [];
+    let mode: GroupMode = 'any';
 
     switch (rule.kind) {
       case 'pairSameCenter':
         studentIds = rule.studentIds;
-        holds = (seatA, seatB) =>
+        mode = rule.groupMode ?? 'any';
+        pairHolds = (seatA, seatB) =>
           index.seatById.get(seatA)?.center.id === index.seatById.get(seatB)?.center.id;
         break;
       case 'pairDifferentCenter':
         studentIds = rule.studentIds;
-        holds = (seatA, seatB) =>
+        mode = rule.groupMode ?? 'any';
+        pairHolds = (seatA, seatB) =>
           index.seatById.get(seatA)?.center.id !== index.seatById.get(seatB)?.center.id;
         break;
       case 'pairNotAdjacentCenters':
         studentIds = rule.studentIds;
-        holds = (seatA, seatB) => {
+        mode = rule.groupMode ?? 'any';
+        pairHolds = (seatA, seatB) => {
           const centerA = index.seatById.get(seatA)?.center.id;
           const centerB = index.seatById.get(seatB)?.center.id;
           if (!centerA || !centerB) return false;
@@ -169,22 +185,22 @@ function buildBinaryConstraints(
         break;
       case 'pairNear':
         studentIds = rule.studentIds;
-        holds = (seatA, seatB) => index.seatDistance(seatA, seatB) <= rule.maxDistance;
+        mode = rule.groupMode ?? 'any';
+        pairHolds = (seatA, seatB) => index.seatDistance(seatA, seatB) <= rule.maxDistance;
         break;
       case 'pairFar':
       case 'pairMinimumDistance':
         studentIds = rule.studentIds;
-        holds = (seatA, seatB) => index.seatDistance(seatA, seatB) >= rule.minDistance;
+        mode = rule.groupMode ?? 'any';
+        pairHolds = (seatA, seatB) => index.seatDistance(seatA, seatB) >= rule.minDistance;
         break;
       default:
-        holds = null;
+        pairHolds = null;
     }
 
-    if (!holds) continue;
+    if (!pairHolds || studentIds.length < 2) continue;
 
-    for (const [a, b] of studentPairs(studentIds)) {
-      constraints.push({ ruleId: rule.id, a, b, holds });
-    }
+    constraints.push({ ruleId: rule.id, studentIds, mode, pairHolds });
   }
 
   return constraints;
@@ -283,23 +299,24 @@ export function buildProblem(
     }
   }
 
-  const binaryByStudent = new Map<string, BinaryConstraint[]>();
-  for (const constraint of buildBinaryConstraints(project.rules, index)) {
-    if (!studentNameById.has(constraint.a) || !studentNameById.has(constraint.b)) continue;
-    for (const studentId of [constraint.a, constraint.b]) {
-      const list = binaryByStudent.get(studentId);
+  const groupConstraintsByStudent = new Map<string, GroupConstraint[]>();
+  for (const constraint of buildGroupConstraints(project.rules, index)) {
+    if (!constraint.studentIds.every((id) => studentNameById.has(id))) continue;
+    for (const studentId of constraint.studentIds) {
+      const list = groupConstraintsByStudent.get(studentId);
       if (list) list.push(constraint);
-      else binaryByStudent.set(studentId, [constraint]);
+      else groupConstraintsByStudent.set(studentId, [constraint]);
     }
   }
 
-  // Most-constrained-first: fewest candidates, then most binary constraints.
+  // Most-constrained-first: fewest candidates, then most group constraints.
   const ordered = [...freeStudents].sort((left, right) => {
     const byCandidates =
       (candidates.get(left.id)?.length ?? 0) - (candidates.get(right.id)?.length ?? 0);
     if (byCandidates !== 0) return byCandidates;
     return (
-      (binaryByStudent.get(right.id)?.length ?? 0) - (binaryByStudent.get(left.id)?.length ?? 0)
+      (groupConstraintsByStudent.get(right.id)?.length ?? 0) -
+      (groupConstraintsByStudent.get(left.id)?.length ?? 0)
     );
   });
 
@@ -321,7 +338,7 @@ export function buildProblem(
     lockedStudentIds,
     freeStudents: ordered,
     candidates,
-    binaryByStudent,
+    groupConstraintsByStudent,
     blockers,
   };
 }

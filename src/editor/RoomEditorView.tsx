@@ -35,7 +35,15 @@ export function RoomEditorView(props: RoomEditorViewProps): JSX.Element {
   );
 
   const options = useMemo(
-    () => ({ ...DEFAULT_ROOM_VIEW_OPTIONS, showRegions: true }),
+    () => ({
+      ...DEFAULT_ROOM_VIEW_OPTIONS,
+      showRegions: true,
+      // Building the room is exactly when ugly ids would otherwise show up
+      // (roster seat tags, the fixed-seat rule picker) — captions here make
+      // every center and seat identifiable at a glance while editing.
+      showCenterLabels: true,
+      showSeatLabels: true,
+    }),
     [],
   );
 

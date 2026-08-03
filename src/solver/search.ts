@@ -12,10 +12,10 @@
  *     something to be repaired afterwards.
  */
 
-import { evaluateRule } from '../constraints/evaluate';
+import { evaluateRule, studentPairs } from '../constraints/evaluate';
 import type { EvaluationContext, Placement } from '../constraints/evaluate';
 import type { SeatingRule } from '../domain/types';
-import type { BinaryConstraint, SolverProblem } from './problem';
+import type { GroupConstraint, SolverProblem } from './problem';
 import type { Rng } from './rng';
 
 /** Guard against pathological search trees; tuned for ≤60 students. */
@@ -28,24 +28,30 @@ export interface FeasibleSearchResult {
   blockCounts: Map<string, number>;
 }
 
-function otherStudent(constraint: BinaryConstraint, studentId: string): string {
-  return constraint.a === studentId ? constraint.b : constraint.a;
-}
-
-function binaryHolds(
-  constraint: BinaryConstraint,
-  studentId: string,
-  seatId: string,
-  otherSeatId: string,
+/**
+ * Judges a group constraint against a seat lookup. Returns `true` (cannot
+ * judge yet, so never blocks a branch) until every member of the group has a
+ * seat; from then on applies the constraint's `'all'`/`'any'` combination over
+ * every pair (mirrors `combineGroupPredicate` in the shared evaluator).
+ */
+function evaluateGroupConstraint(
+  constraint: GroupConstraint,
+  seatOf: (studentId: string) => string | undefined,
 ): boolean {
-  return constraint.a === studentId
-    ? constraint.holds(seatId, otherSeatId)
-    : constraint.holds(otherSeatId, seatId);
+  const seats = constraint.studentIds.map(seatOf);
+  if (seats.some((seat) => seat === undefined)) return true;
+
+  const pairs = studentPairs(constraint.studentIds);
+  const holdsPerPair = pairs.map(([a, b]) =>
+    constraint.pairHolds(seatOf(a) as string, seatOf(b) as string),
+  );
+  return constraint.mode === 'all' ? holdsPerPair.every(Boolean) : holdsPerPair.some(Boolean);
 }
 
 /**
- * Checks the just-proposed seat against every already-placed student that
- * shares a required relationship rule with `studentId`.
+ * Checks the just-proposed seat against every required group constraint
+ * `studentId` participates in, treating groups still missing a member as
+ * unjudgeable rather than as a violation.
  */
 function consistent(
   problem: SolverProblem,
@@ -54,14 +60,14 @@ function consistent(
   placement: Map<string, string>,
   blockCounts: Map<string, number>,
 ): boolean {
-  const constraints = problem.binaryByStudent.get(studentId);
+  const constraints = problem.groupConstraintsByStudent.get(studentId);
   if (!constraints) return true;
 
+  const seatOf = (id: string): string | undefined =>
+    id === studentId ? seatId : (placement.get(id) ?? problem.fixed.get(id));
+
   for (const constraint of constraints) {
-    const other = otherStudent(constraint, studentId);
-    const otherSeat = placement.get(other) ?? problem.fixed.get(other);
-    if (otherSeat === undefined) continue;
-    if (!binaryHolds(constraint, studentId, seatId, otherSeat)) {
+    if (!evaluateGroupConstraint(constraint, seatOf)) {
       blockCounts.set(constraint.ruleId, (blockCounts.get(constraint.ruleId) ?? 0) + 1);
       return false;
     }
@@ -71,23 +77,29 @@ function consistent(
 
 /**
  * Forward checking: after tentatively seating `studentId`, every still-unplaced
- * student that shares a constraint with them must retain at least one legal
- * seat. Restricting the check to constraint neighbours keeps it cheap while
- * still cutting most dead branches.
+ * student that shares a group constraint with them must retain at least one
+ * legal seat. This only bites once a constraint has exactly one member left to
+ * place — with more still open, `consistent` cannot judge it yet and lets the
+ * candidate through, which is correct (never rejects a possibly-valid branch)
+ * even though it prunes less eagerly than per-pair checking would.
  */
 function forwardCheck(
   problem: SolverProblem,
   studentId: string,
   placement: Map<string, string>,
   used: Set<string>,
+  blockCounts: Map<string, number>,
 ): boolean {
-  const constraints = problem.binaryByStudent.get(studentId);
+  const constraints = problem.groupConstraintsByStudent.get(studentId);
   if (!constraints) return true;
 
   const neighbours = new Set<string>();
   for (const constraint of constraints) {
-    const other = otherStudent(constraint, studentId);
-    if (!placement.has(other) && !problem.fixed.has(other)) neighbours.add(other);
+    for (const memberId of constraint.studentIds) {
+      if (memberId !== studentId && !placement.has(memberId) && !problem.fixed.has(memberId)) {
+        neighbours.add(memberId);
+      }
+    }
   }
 
   for (const neighbour of neighbours) {
@@ -95,7 +107,11 @@ function forwardCheck(
     let survivor = false;
     for (const candidateSeat of options) {
       if (used.has(candidateSeat)) continue;
-      if (consistent(problem, neighbour, candidateSeat, placement, new Map())) {
+      // Shares the real accumulator: with group (as opposed to per-pair)
+      // constraints, a rejection is sometimes only detectable here — once
+      // enough of the group is tentatively seated to judge it — rather than
+      // at the top-level `consistent` call for the student being placed.
+      if (consistent(problem, neighbour, candidateSeat, placement, blockCounts)) {
         survivor = true;
         break;
       }
@@ -138,7 +154,9 @@ export function findFeasible(
       placement.set(student.id, seatId);
       used.add(seatId);
 
-      if (forwardCheck(problem, student.id, placement, used) && step(depth + 1)) return true;
+      if (forwardCheck(problem, student.id, placement, used, blockCounts) && step(depth + 1)) {
+        return true;
+      }
 
       placement.delete(student.id);
       used.delete(seatId);
@@ -231,13 +249,12 @@ function requiredHoldsFor(
   // their unary required rules allow.
   if (allowed !== undefined && !allowed.includes(seatId)) return false;
 
-  const constraints = problem.binaryByStudent.get(studentId);
+  const constraints = problem.groupConstraintsByStudent.get(studentId);
   if (!constraints) return true;
+
+  const seatOf = (id: string): string | undefined => placement.get(id) ?? problem.fixed.get(id);
   for (const constraint of constraints) {
-    const other = otherStudent(constraint, studentId);
-    const otherSeat = placement.get(other);
-    if (otherSeat === undefined) continue;
-    if (!binaryHolds(constraint, studentId, seatId, otherSeat)) return false;
+    if (!evaluateGroupConstraint(constraint, seatOf)) return false;
   }
   return true;
 }

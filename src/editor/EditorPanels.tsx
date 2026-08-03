@@ -73,9 +73,18 @@ export function EditorToolsPanel({
     onUpdateRoom((draft) => {
       const columns = seatCount <= 2 ? seatCount : Math.ceil(seatCount / 2);
       const id = createId('center');
-      const probe = buildCenter({ id, x: 0, y: 0, seatCount, columns });
+      // A center added straight from the palette has no template to inherit
+      // a name from, so it defaults to "Grupo N"/"Lugar N" — otherwise it
+      // would show its raw id everywhere (roster seat tags, the fixed-seat
+      // rule picker) until the user manually renamed it.
+      const ordinal = draft.centers.length + 1;
+      const name =
+        seatCount === 1
+          ? `${t('editor.defaultName.seat')} ${ordinal}`
+          : `${t('editor.defaultName.group')} ${ordinal}`;
+      const probe = buildCenter({ id, x: 0, y: 0, seatCount, columns, name });
       const spot = dropSpot(draft, probe);
-      draft.centers.push(buildCenter({ id, x: spot.x, y: spot.y, seatCount, columns }));
+      draft.centers.push(buildCenter({ id, x: spot.x, y: spot.y, seatCount, columns, name }));
     });
   };
 

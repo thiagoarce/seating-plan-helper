@@ -46,6 +46,11 @@ export const ptBR: MessageCatalog = {
   'template.mixed.name': 'Misto',
   'template.mixed.description': 'Duplas nas laterais, ilhas no centro e trios ao fundo.',
   'template.seatCount': '{count} lugares',
+  'template.namePrefix.desk': 'Carteira',
+  'template.namePrefix.pair': 'Dupla',
+  'template.namePrefix.group': 'Grupo',
+  'editor.defaultName.group': 'Grupo',
+  'editor.defaultName.seat': 'Lugar',
 
   // -- Room editor ----------------------------------------------------------
   'editor.title': 'Editor da sala',
@@ -167,6 +172,11 @@ export const ptBR: MessageCatalog = {
   'rules.distance.far': 'Longe',
   'rules.distance.custom': 'Personalizada',
   'rules.distancePreview': 'Perto = até {near}. Longe = a partir de {far}.',
+  'rules.groupMode.label': 'Quando aplicar, com 3 ou mais alunos',
+  'rules.groupMode.any': 'Ou (basta 1 par)',
+  'rules.groupMode.all': 'E (todos os pares)',
+  'rules.groupMode.help':
+    'Ou: cumpre a regra se valer para pelo menos um par do grupo — por exemplo, evita que todos acabem juntos, mas permite que dois fiquem. E: precisa valer para todos os pares ao mesmo tempo — separa o grupo inteiro, ninguém pode ficar com ninguém.',
 
   // -- Rule kind labels -----------------------------------------------------
   'ruleKind.studentInRegion': 'Aluno em uma área',

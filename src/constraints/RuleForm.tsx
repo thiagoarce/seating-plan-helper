@@ -9,9 +9,10 @@
 
 import { useMemo, useState } from 'react';
 import { allSeats } from '../domain/room';
-import type { RuleKind, SeatingProject, SeatingRule } from '../domain/types';
+import type { GroupMode, RuleKind, SeatingProject, SeatingRule } from '../domain/types';
 import { useMessages } from '../i18n/useMessages';
 import { createId } from '../shared/id';
+import { seatDisplayLabel } from '../shared/labels';
 import { NumberField, SelectField, Toggle } from '../shared/ui';
 
 const RULE_KINDS: RuleKind[] = [
@@ -63,18 +64,22 @@ export function RuleForm({ project, onSubmit, onCancel }: RuleFormProps): JSX.El
   const [seatId, setSeatId] = useState(allSeats(project.room)[0]?.seat.id ?? '');
   const [distanceMode, setDistanceMode] = useState<'near' | 'far' | 'custom'>('near');
   const [customDistance, setCustomDistance] = useState(project.generation.nearDistance);
+  const [groupMode, setGroupMode] = useState<GroupMode>('any');
 
   const seatOptions = useMemo(
     () =>
       allSeats(project.room).map(({ seat, center }) => ({
         value: seat.id,
-        label: seat.label ? `${seat.label}` : `${center.name ?? center.id} · ${seat.id}`,
+        label: seatDisplayLabel(center, seat),
       })),
     [project.room],
   );
 
   const isPair = PAIR_KINDS.has(kind);
   const needsDistance = DISTANCE_KINDS.has(kind);
+  // For exactly two students 'all' and 'any' are the same rule, so the choice
+  // would just be confusing clutter — only show it once it actually matters.
+  const needsGroupMode = isPair && studentIds.length > 2;
 
   const resolvedDistance =
     distanceMode === 'near'
@@ -108,12 +113,12 @@ export function RuleForm({ project, onSubmit, onCancel }: RuleFormProps): JSX.El
       case 'pairSameCenter':
       case 'pairDifferentCenter':
       case 'pairNotAdjacentCenters':
-        return { ...base, kind, studentIds };
+        return { ...base, kind, studentIds, groupMode };
       case 'pairNear':
-        return { ...base, kind, studentIds, maxDistance: resolvedDistance };
+        return { ...base, kind, studentIds, maxDistance: resolvedDistance, groupMode };
       case 'pairFar':
       case 'pairMinimumDistance':
-        return { ...base, kind, studentIds, minDistance: resolvedDistance };
+        return { ...base, kind, studentIds, minDistance: resolvedDistance, groupMode };
       default:
         return null;
     }
@@ -157,7 +162,32 @@ export function RuleForm({ project, onSubmit, onCancel }: RuleFormProps): JSX.El
             ))}
           </div>
         </fieldset>
-      ) : (
+      ) : null}
+
+      {needsGroupMode ? (
+        <div className="field">
+          <label>{t('rules.groupMode.label')}</label>
+          <div className="row" style={{ marginBottom: 'var(--space-1)' }}>
+            <button
+              type="button"
+              className={groupMode === 'any' ? 'pressed' : ''}
+              onClick={() => setGroupMode('any')}
+            >
+              {t('rules.groupMode.any')}
+            </button>
+            <button
+              type="button"
+              className={groupMode === 'all' ? 'pressed' : ''}
+              onClick={() => setGroupMode('all')}
+            >
+              {t('rules.groupMode.all')}
+            </button>
+          </div>
+          <p className="muted">{t('rules.groupMode.help')}</p>
+        </div>
+      ) : null}
+
+      {!isPair ? (
         <SelectField
           label={t('rules.student')}
           value={studentId}
@@ -167,7 +197,7 @@ export function RuleForm({ project, onSubmit, onCancel }: RuleFormProps): JSX.El
             label: student.name,
           }))}
         />
-      )}
+      ) : null}
 
       {kind === 'studentInRegion' || kind === 'studentNotInRegion' ? (
         <SelectField

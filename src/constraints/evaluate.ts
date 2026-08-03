@@ -185,8 +185,7 @@ function evaluatePairRule(
   if (!seats) return unassigned(rule, rule.studentIds);
 
   const seatOf = new Map(seats.map((entry) => [entry.studentId, entry.seatId]));
-  const offenders: string[] = [];
-  let worstValue = 0;
+  const pairResults: Array<{ a: string; b: string; holds: boolean; distance?: number }> = [];
 
   for (const [a, b] of studentPairs(rule.studentIds)) {
     const seatA = seatOf.get(a);
@@ -197,6 +196,7 @@ function evaluatePairRule(
     if (!indexedA || !indexedB) return orphan(rule, 'rule.orphan.seat', rule.studentIds);
 
     let pairHolds: boolean;
+    let distance: number | undefined;
     switch (rule.kind) {
       case 'pairSameCenter':
         pairHolds = indexedA.center.id === indexedB.center.id;
@@ -213,36 +213,45 @@ function evaluatePairRule(
         break;
       }
       case 'pairNear': {
-        const measured = context.index.seatDistance(seatA, seatB);
-        worstValue = Math.max(worstValue, measured);
-        pairHolds = measured <= rule.maxDistance;
+        distance = context.index.seatDistance(seatA, seatB);
+        pairHolds = distance <= rule.maxDistance;
         break;
       }
       case 'pairFar':
       case 'pairMinimumDistance': {
-        const measured = context.index.seatDistance(seatA, seatB);
-        worstValue = worstValue === 0 ? measured : Math.min(worstValue, measured);
-        pairHolds = measured >= rule.minDistance;
+        distance = context.index.seatDistance(seatA, seatB);
+        pairHolds = distance >= rule.minDistance;
         break;
       }
     }
 
-    if (!pairHolds) {
-      if (!offenders.includes(a)) offenders.push(a);
-      if (!offenders.includes(b)) offenders.push(b);
-    }
+    pairResults.push({ a, b, holds: pairHolds, ...(distance !== undefined ? { distance } : {}) });
   }
 
-  const satisfied = offenders.length === 0;
+  const mode = rule.groupMode ?? 'any';
+  const { satisfied, offenders } = combineGroupPredicate(pairResults, mode);
+
   const values: Record<string, string | number> = {
     students: namesOf(context, satisfied ? rule.studentIds : offenders),
   };
-  if (rule.kind === 'pairNear') {
-    values['distance'] = Math.round(worstValue);
-    values['threshold'] = Math.round(rule.maxDistance);
-  } else if (rule.kind === 'pairFar' || rule.kind === 'pairMinimumDistance') {
-    values['distance'] = Math.round(worstValue);
-    values['threshold'] = Math.round(rule.minDistance);
+  if (rule.kind === 'pairNear' || rule.kind === 'pairFar' || rule.kind === 'pairMinimumDistance') {
+    const distances = pairResults
+      .map((entry) => entry.distance)
+      .filter((value): value is number => value !== undefined);
+    if (distances.length > 0) {
+      // For 'all', the tightest pair is representative of what might fail; for
+      // 'any', the closest-to-success pair is the informative one to report.
+      const reportValue =
+        rule.kind === 'pairNear'
+          ? mode === 'all'
+            ? Math.max(...distances)
+            : Math.min(...distances)
+          : mode === 'all'
+            ? Math.min(...distances)
+            : Math.max(...distances);
+      values['distance'] = Math.round(reportValue);
+      values['threshold'] = Math.round(rule.kind === 'pairNear' ? rule.maxDistance : rule.minDistance);
+    }
   }
 
   return result(
@@ -255,6 +264,41 @@ function evaluatePairRule(
     satisfied ? [...rule.studentIds] : offenders,
     seats.map((entry) => entry.seatId),
   );
+}
+
+/**
+ * Combines the per-pair results of a group relationship rule according to its
+ * mode: `'all'` requires every pair to hold (mutual spread/togetherness across
+ * the whole group); `'any'` requires only one pair to hold (a looser "not
+ * everyone ended up the same way" check). For exactly one pair both modes
+ * agree.
+ */
+function combineGroupPredicate(
+  results: ReadonlyArray<{ a: string; b: string; holds: boolean }>,
+  mode: 'all' | 'any',
+): { satisfied: boolean; offenders: string[] } {
+  if (results.length === 0) return { satisfied: true, offenders: [] };
+
+  if (mode === 'all') {
+    const offenders: string[] = [];
+    for (const { a, b, holds } of results) {
+      if (holds) continue;
+      if (!offenders.includes(a)) offenders.push(a);
+      if (!offenders.includes(b)) offenders.push(b);
+    }
+    return { satisfied: offenders.length === 0, offenders };
+  }
+
+  const satisfied = results.some((entry) => entry.holds);
+  if (satisfied) return { satisfied, offenders: [] };
+
+  // Violated 'any': no pair held, so every student in the set is implicated.
+  const offenders: string[] = [];
+  for (const { a, b } of results) {
+    if (!offenders.includes(a)) offenders.push(a);
+    if (!offenders.includes(b)) offenders.push(b);
+  }
+  return { satisfied: false, offenders };
 }
 
 // ---------------------------------------------------------------------------
