@@ -51,6 +51,7 @@ const seatSchema = z.object({
   label: z.string().optional(),
   enabled: z.boolean(),
   tags: z.array(z.string()).optional(),
+  deskShape: z.enum(['rectangle', 'trapezoid']).optional(),
 });
 
 const centerSchema = z.object({

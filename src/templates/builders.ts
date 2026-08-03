@@ -120,6 +120,63 @@ export function buildCenterGrid(spec: GridSpec): SeatingCenter[] {
   return centers;
 }
 
+/** Distance from a flower pod's shared center to each trapezoid's midpoint. */
+const FLOWER_RADIUS = SEAT_SIZE / 2 + 4;
+const FLOWER_PADDING = 15;
+/** Pod footprint: radius in every direction plus half a desk, plus padding. */
+const FLOWER_BOX_SIZE = (FLOWER_RADIUS + SEAT_SIZE / 2) * 2 + FLOWER_PADDING * 2;
+
+export interface FlowerPodSpec {
+  id: string;
+  x: number;
+  y: number;
+  name?: string;
+}
+
+/**
+ * Four trapezoid desks fanned around a shared center — narrow edges pointing
+ * inward, wide edges (where the chairs sit) facing outward — approximating
+ * the hexagonal/starburst trapezoid pods real classroom furniture comes in.
+ * A true 3-way (120°) or 6-way (60°) fan would need rotation finer than the
+ * editor's 90° increments, so this is the closest four-way version that
+ * still uses ordinary quarter turns (PRODUCT_SPEC §5.2).
+ */
+export function buildTrapezoidFlower(spec: FlowerPodSpec): SeatingCenter {
+  const center = FLOWER_BOX_SIZE / 2;
+  // Rotation is a compass bearing clockwise from north (0°): the unrotated
+  // trapezoid's narrow edge points north, so a seat north of the shared
+  // center needs its narrow edge turned to face south (180°), and so on
+  // around the compass.
+  const petals: Array<{ dx: number; dy: number; rotation: Rotation }> = [
+    { dx: 0, dy: -FLOWER_RADIUS, rotation: 180 },
+    { dx: FLOWER_RADIUS, dy: 0, rotation: 270 },
+    { dx: 0, dy: FLOWER_RADIUS, rotation: 0 },
+    { dx: -FLOWER_RADIUS, dy: 0, rotation: 90 },
+  ];
+
+  const seats: Seat[] = petals.map((petal, position) => ({
+    id: `${spec.id}-s${position + 1}`,
+    centerId: spec.id,
+    x: center + petal.dx,
+    y: center + petal.dy,
+    rotation: petal.rotation,
+    enabled: true,
+    deskShape: 'trapezoid',
+    label: `${position + 1}`,
+  }));
+
+  return {
+    id: spec.id,
+    ...(spec.name !== undefined ? { name: spec.name } : {}),
+    x: spec.x,
+    y: spec.y,
+    width: FLOWER_BOX_SIZE,
+    height: FLOWER_BOX_SIZE,
+    rotation: 0,
+    seats,
+  };
+}
+
 export function buildObject(
   id: string,
   type: RoomObjectType,

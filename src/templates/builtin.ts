@@ -11,14 +11,22 @@ import { DEFAULT_GRID_SIZE, DEFAULT_ROOM_HEIGHT, DEFAULT_ROOM_WIDTH } from '../d
 import type { RoomDefinition, RoomTemplate } from '../domain/types';
 import type { MessageCatalog } from '../i18n/format';
 import { formatMessage } from '../i18n/format';
-import { buildCenter, buildCenterGrid, buildDepthBands, buildObject } from './builders';
+import {
+  buildCenter,
+  buildCenterGrid,
+  buildDepthBands,
+  buildObject,
+  buildTrapezoidFlower,
+} from './builders';
 
 export type TemplateId =
   | 'blank'
   | 'rows'
   | 'pairs'
   | 'groups-of-four'
-  | 'mixed';
+  | 'mixed'
+  | 'organic-islands'
+  | 'trapezoid-flower';
 
 export interface TemplateDescriptor {
   id: TemplateId;
@@ -133,12 +141,68 @@ function mixedRoom(catalog: MessageCatalog): RoomDefinition {
   return room;
 }
 
+/**
+ * Six islands of four placed at hand-picked, non-grid positions, matching how
+ * real classrooms actually get arranged (islands nudged into whatever gaps
+ * the room's fixed furniture leaves) rather than a perfectly even grid.
+ */
+function organicIslandsRoom(catalog: MessageCatalog): RoomDefinition {
+  const room = baseRoom(catalog);
+  const namePrefix = formatMessage(catalog, 'template.namePrefix.island');
+  const positions = [
+    { x: 90, y: 160 },
+    { x: 330, y: 110 },
+    { x: 600, y: 170 },
+    { x: 860, y: 260 },
+    { x: 200, y: 430 },
+    { x: 520, y: 480 },
+  ];
+  room.centers = positions.map((position, index) =>
+    buildCenter({
+      id: `isl${index + 1}`,
+      name: `${namePrefix} ${index + 1}`,
+      x: position.x,
+      y: position.y,
+      seatCount: 4,
+      columns: 2,
+    }),
+  );
+  return room;
+}
+
+/**
+ * Trapezoid-desk "flower" pods (§ `buildTrapezoidFlower`), the closest
+ * quarter-turn-compatible approximation of hexagonal collaborative desk sets.
+ */
+function trapezoidFlowerRoom(catalog: MessageCatalog): RoomDefinition {
+  const room = baseRoom(catalog);
+  const namePrefix = formatMessage(catalog, 'template.namePrefix.flower');
+  const positions = [
+    { x: 200, y: 180 },
+    { x: 600, y: 180 },
+    { x: 200, y: 480 },
+    { x: 600, y: 480 },
+    { x: 1000, y: 330 },
+  ];
+  room.centers = positions.map((position, index) =>
+    buildTrapezoidFlower({
+      id: `flower${index + 1}`,
+      name: `${namePrefix} ${index + 1}`,
+      x: position.x,
+      y: position.y,
+    }),
+  );
+  return room;
+}
+
 const BUILDERS: Record<TemplateId, (catalog: MessageCatalog) => RoomDefinition> = {
   blank: baseRoom,
   rows: rowsRoom,
   pairs: pairsRoom,
   'groups-of-four': groupsOfFourRoom,
   mixed: mixedRoom,
+  'organic-islands': organicIslandsRoom,
+  'trapezoid-flower': trapezoidFlowerRoom,
 };
 
 export const TEMPLATE_DESCRIPTORS: TemplateDescriptor[] = [
@@ -165,6 +229,18 @@ export const TEMPLATE_DESCRIPTORS: TemplateDescriptor[] = [
     nameKey: 'template.mixed.name',
     descriptionKey: 'template.mixed.description',
     seatCount: 22,
+  },
+  {
+    id: 'organic-islands',
+    nameKey: 'template.organicIslands.name',
+    descriptionKey: 'template.organicIslands.description',
+    seatCount: 24,
+  },
+  {
+    id: 'trapezoid-flower',
+    nameKey: 'template.trapezoidFlower.name',
+    descriptionKey: 'template.trapezoidFlower.description',
+    seatCount: 20,
   },
   {
     id: 'blank',

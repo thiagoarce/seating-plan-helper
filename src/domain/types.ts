@@ -32,6 +32,15 @@ export interface GridSettings {
   snap: boolean;
 }
 
+/**
+ * Visual footprint of a seat's desk. `'trapezoid'` renders a wedge (narrow
+ * edge pointing toward `rotation`'s direction, wide edge — where the chair
+ * sits — opposite it), letting several seats fan out around a shared point.
+ * Purely cosmetic: geometry, region membership, and distance all still use
+ * the seat's single (x, y) position regardless of shape.
+ */
+export type DeskShape = 'rectangle' | 'trapezoid';
+
 export interface Seat {
   id: string;
   centerId: string;
@@ -42,6 +51,7 @@ export interface Seat {
   label?: string;
   enabled: boolean;
   tags?: string[];
+  deskShape?: DeskShape;
 }
 
 export interface SeatingCenter {

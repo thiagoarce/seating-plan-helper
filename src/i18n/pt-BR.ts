@@ -45,10 +45,18 @@ export const ptBR: MessageCatalog = {
   'template.groupsOfFour.description': 'Seis ilhas de quatro lugares.',
   'template.mixed.name': 'Misto',
   'template.mixed.description': 'Duplas nas laterais, ilhas no centro e trios ao fundo.',
+  'template.organicIslands.name': 'Ilhas dispersas',
+  'template.organicIslands.description':
+    'Seis grupos de quatro espalhados pela sala, sem grade fixa — como fica na prática.',
+  'template.trapezoidFlower.name': 'Flor trapezoidal',
+  'template.trapezoidFlower.description':
+    'Mesas trapezoidais em leque de 4, formando uma flor/estrela ao redor de um centro.',
   'template.seatCount': '{count} lugares',
   'template.namePrefix.desk': 'Carteira',
   'template.namePrefix.pair': 'Dupla',
   'template.namePrefix.group': 'Grupo',
+  'template.namePrefix.island': 'Ilha',
+  'template.namePrefix.flower': 'Flor',
   'editor.defaultName.group': 'Grupo',
   'editor.defaultName.seat': 'Lugar',
 

@@ -11,7 +11,7 @@
 import { Fragment } from 'react';
 import type { KeyboardEvent, MouseEvent, PointerEvent } from 'react';
 import { SEAT_SIZE } from '../domain/defaults';
-import { rotatedBounds, seatWorldPosition } from '../domain/geometry';
+import { rotatedBounds, seatWorldPosition, seatWorldRotation } from '../domain/geometry';
 import type {
   ExportLayout,
   Region,
@@ -29,6 +29,8 @@ export interface SeatPresentation {
   center: SeatingCenter;
   x: number;
   y: number;
+  /** Combined center+seat rotation, for shapes that render direction (§ DeskShape). */
+  rotation: number;
   studentName: string | null;
   studentId: string | null;
   locked: boolean;
@@ -65,6 +67,20 @@ export const DEFAULT_ROOM_VIEW_OPTIONS: RoomViewOptions = {
 
 const SEAT_CORNER = 6;
 const NAME_BASE_FONT_SIZE = 11;
+/** Half-width of a trapezoid desk's narrow (inner) edge, as a share of `half`. */
+const TRAPEZOID_NARROW_RATIO = 0.42;
+
+/** Unrotated trapezoid: narrow edge at top (toward `rotation`'s direction), wide at bottom. */
+function trapezoidPoints(x: number, y: number, half: number): string {
+  const narrowHalf = half * TRAPEZOID_NARROW_RATIO;
+  const points = [
+    [x - narrowHalf, y - half],
+    [x + narrowHalf, y - half],
+    [x + half, y + half],
+    [x - half, y + half],
+  ];
+  return points.map(([px, py]) => `${px},${py}`).join(' ');
+}
 const NAME_MIN_FONT_SIZE = 6;
 
 /** Builds the per-seat view model the drawing needs. */
@@ -88,6 +104,7 @@ export function buildSeatPresentations(
         center,
         x: position.x,
         y: position.y,
+        rotation: seatWorldRotation(center, seat),
         studentId,
         studentName: studentId ? (studentNameById.get(studentId) ?? null) : null,
         locked: studentId ? lockedStudentIds.has(studentId) : false,
@@ -262,11 +279,12 @@ export function SeatShape({
   onKeyDown,
   ariaLabel,
 }: SeatShapeProps): JSX.Element | null {
-  const { seat, x, y, studentName, locked, violating } = presentation;
+  const { seat, x, y, rotation, studentName, locked, violating } = presentation;
   if (!seat.enabled) return null;
   if (!studentName && !options.showEmptySeats) return null;
 
   const half = SEAT_SIZE / 2;
+  const isTrapezoid = seat.deskShape === 'trapezoid';
   const label = studentName ? displayName(studentName, options.nameStyle) : '';
   const wrapped = wrapName(label, {
     maxWidth: SEAT_SIZE - 8,
@@ -298,27 +316,54 @@ export function SeatShape({
       aria-label={ariaLabel}
       style={interactive ? undefined : { pointerEvents: 'none' }}
     >
-      <rect
-        className="seat-rect"
-        x={x - half}
-        y={y - half}
-        width={SEAT_SIZE}
-        height={SEAT_SIZE}
-        rx={SEAT_CORNER}
-        fill={studentName ? 'var(--seat-fill)' : 'var(--seat-empty-fill)'}
-        stroke="var(--seat-stroke)"
-        strokeWidth={1.5}
-      />
-      {/* Chair-back marker: shows which way the seat faces without needing colour. */}
-      <rect
-        x={x - half + 10}
-        y={y + half - 5}
-        width={SEAT_SIZE - 20}
-        height={3}
-        rx={1.5}
-        fill="var(--seat-stroke)"
-        opacity={0.7}
-      />
+      {isTrapezoid ? (
+        // Narrow edge (top, unrotated) points toward the pod's shared center;
+        // the wide edge is where the chair sits. `rotation` — the combined
+        // center+seat rotation — turns that point in 90° steps to fan several
+        // of these around one point (§ DeskShape).
+        <g transform={rotation ? `rotate(${rotation} ${x} ${y})` : undefined}>
+          <polygon
+            className="seat-rect"
+            points={trapezoidPoints(x, y, half)}
+            fill={studentName ? 'var(--seat-fill)' : 'var(--seat-empty-fill)'}
+            stroke="var(--seat-stroke)"
+            strokeWidth={1.5}
+          />
+          <rect
+            x={x - half + 8}
+            y={y + half - 5}
+            width={SEAT_SIZE - 16}
+            height={3}
+            rx={1.5}
+            fill="var(--seat-stroke)"
+            opacity={0.7}
+          />
+        </g>
+      ) : (
+        <>
+          <rect
+            className="seat-rect"
+            x={x - half}
+            y={y - half}
+            width={SEAT_SIZE}
+            height={SEAT_SIZE}
+            rx={SEAT_CORNER}
+            fill={studentName ? 'var(--seat-fill)' : 'var(--seat-empty-fill)'}
+            stroke="var(--seat-stroke)"
+            strokeWidth={1.5}
+          />
+          {/* Chair-back marker: shows which way the seat faces without needing colour. */}
+          <rect
+            x={x - half + 10}
+            y={y + half - 5}
+            width={SEAT_SIZE - 20}
+            height={3}
+            rx={1.5}
+            fill="var(--seat-stroke)"
+            opacity={0.7}
+          />
+        </>
+      )}
       {locked ? (
         <text x={x + half - 9} y={y - half + 13} fontSize={10} fill="var(--text-muted)">
           ✱
