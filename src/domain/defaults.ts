@@ -20,12 +20,17 @@ export const DEFAULT_GRID_SIZE = 20;
 
 /**
  * Standard footprint of a single-seat desk, in logical units. Real desks are
- * rectangular, not square: side-to-side (`SEAT_WIDTH`) is twice front-to-back
- * (`SEAT_DEPTH`). `SEAT_SIZE` stays as the wider dimension for call sites that
- * only need a rough footprint (hit-test radius, minimum sizes, fallbacks).
+ * rectangular, not square: side-to-side (`SEAT_WIDTH`) is roughly twice
+ * front-to-back (`SEAT_DEPTH`). `SEAT_SIZE` stays as the wider dimension for
+ * call sites that only need a rough footprint (hit-test radius, minimum sizes).
+ *
+ * These are deliberately large against `DEFAULT_ROOM_WIDTH`. The printed plan
+ * is a poster a class reads from across the room, not a scale drawing of the
+ * furniture — and a name is only ever as big as the desk holding it, so the
+ * desk-to-room ratio is what decides whether names are legible on paper.
  */
-export const SEAT_WIDTH = 60;
-export const SEAT_DEPTH = 30;
+export const SEAT_WIDTH = 130;
+export const SEAT_DEPTH = 70;
 export const SEAT_SIZE = SEAT_WIDTH;
 
 /**

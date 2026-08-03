@@ -268,6 +268,15 @@ export interface TrapezoidRowSpec {
   rotation?: Rotation;
 }
 
+/** Unrotated footprint of a `count`-desk trapezoid row. */
+export function trapezoidRowFootprint(count: number): { width: number; height: number } {
+  const pitch = (SEAT_WIDTH / 2) * (1 + TRAPEZOID_NARROW_RATIO);
+  return {
+    width: Math.max(count - 1, 0) * pitch + SEAT_WIDTH + CENTER_PADDING * 2,
+    height: SEAT_SIZE + CENTER_PADDING * 2,
+  };
+}
+
 /**
  * A row of trapezoid desks alternating 0°/180°, so each desk's slanted side
  * tiles flush against its neighbour's — the classic parallelogram-shaped
@@ -276,8 +285,7 @@ export interface TrapezoidRowSpec {
 export function buildTrapezoidRow(spec: TrapezoidRowSpec): SeatingCenter {
   const halfWidth = SEAT_WIDTH / 2;
   const pitch = halfWidth * (1 + TRAPEZOID_NARROW_RATIO);
-  const width = Math.max(spec.count - 1, 0) * pitch + SEAT_WIDTH + CENTER_PADDING * 2;
-  const height = SEAT_SIZE + CENTER_PADDING * 2;
+  const { width, height } = trapezoidRowFootprint(spec.count);
   const centerY = height / 2;
 
   const seats: Seat[] = Array.from({ length: spec.count }, (_, position) => ({

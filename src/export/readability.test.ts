@@ -1,8 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { createEmptyProject, createEmptyRoom } from '../domain/defaults';
 import type { SeatingProject } from '../domain/types';
+import { buildSeatPresentations, planNameFontSize } from '../shared/RoomGraphics';
 import { buildCenter } from '../templates/builders';
+import { planFitScale } from './PlanDocument';
 import { suggestReadableLayout, TARGET_NAME_POINTS } from './readability';
+
+/** Size the plan's names actually print at under the project's current settings. */
+function currentNamePoints(project: SeatingProject): number {
+  const seats = buildSeatPresentations(
+    project.room,
+    new Map(project.assignments.map((item) => [item.studentId, item.seatId])),
+    new Map(project.roster.map((student) => [student.id, student.name])),
+  );
+  const { nameStyle, fontScale } = project.exportLayout;
+  return planNameFontSize(seats, nameStyle, fontScale) * planFitScale(project);
+}
 
 const LONG_NAMES = [
   'Maria Cecília Souza',
@@ -11,20 +24,26 @@ const LONG_NAMES = [
   'João Pedro Alves',
 ];
 
-/** Six groups of four filling a 1200x800 room — the dense, hardest case. */
-function fullClassroom(names: string[] = LONG_NAMES): SeatingProject {
+/**
+ * A grid of four-seat groups. More groups means a wider drawing squeezed onto
+ * the same page, which is what pushes names below the readable threshold.
+ */
+function fullClassroom(
+  names: string[] = LONG_NAMES,
+  grid: { columns: number; rows: number } = { columns: 3, rows: 2 },
+): SeatingProject {
   const room = createEmptyRoom();
   room.width = 1200;
   room.height = 800;
   room.objects = [];
   room.centers = [];
-  for (let row = 0; row < 2; row += 1) {
-    for (let column = 0; column < 3; column += 1) {
+  for (let row = 0; row < grid.rows; row += 1) {
+    for (let column = 0; column < grid.columns; column += 1) {
       room.centers.push(
         buildCenter({
           id: `q${row}${column}`,
-          x: 200 + column * 312,
-          y: 220 + row * 212,
+          x: 200 + column * 340,
+          y: 220 + row * 240,
           seatCount: 4,
           columns: 2,
         }),
@@ -50,8 +69,14 @@ describe('suggestReadableLayout', () => {
   });
 
   it('shortens the name style when full names cannot be made legible', () => {
-    const suggestion = suggestReadableLayout(fullClassroom());
-    expect(suggestion.nameStyle).not.toBe('full');
+    // Six groups across leaves each desk too narrow on the page for a full
+    // name at a readable size, so the style has to give.
+    const crowded = fullClassroom(
+      ['Maria Aparecida Gonçalves', 'Bartholomeu Vasconcellos', 'Anastácia Evangelista'],
+      { columns: 6, rows: 3 },
+    );
+
+    expect(suggestReadableLayout(crowded).nameStyle).not.toBe('full');
   });
 
   it('keeps full names when they already fit legibly', () => {
@@ -60,11 +85,12 @@ describe('suggestReadableLayout', () => {
     expect(suggestion.namePoints).toBeGreaterThanOrEqual(TARGET_NAME_POINTS);
   });
 
-  it('beats the default settings it replaces', () => {
+  it('never returns settings worse than the ones already in place', () => {
     const project = fullClassroom();
-    const before = 11 * project.exportLayout.fontScale;
+    const before = currentNamePoints(project);
     const suggestion = suggestReadableLayout(project);
-    expect(suggestion.fontScale * 11).toBeGreaterThan(before);
+
+    expect(suggestion.namePoints).toBeGreaterThanOrEqual(before);
   });
 
   it('stays within the range the manual control allows', () => {

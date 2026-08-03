@@ -11,7 +11,14 @@ import { DEFAULT_GRID_SIZE, DEFAULT_ROOM_HEIGHT, DEFAULT_ROOM_WIDTH } from '../d
 import type { RoomDefinition, RoomTemplate } from '../domain/types';
 import type { MessageCatalog } from '../i18n/format';
 import { formatMessage } from '../i18n/format';
-import { buildCenterGrid, buildDepthBands, buildObject, buildTrapezoidRow } from './builders';
+import {
+  buildCenterGrid,
+  buildDepthBands,
+  buildObject,
+  buildTrapezoidRow,
+  centerFootprint,
+  trapezoidRowFootprint,
+} from './builders';
 
 /**
  * Curated to the arrangements teachers actually reach for by grade band
@@ -30,6 +37,16 @@ export interface TemplateDescriptor {
 
 const WIDTH = DEFAULT_ROOM_WIDTH;
 const HEIGHT = DEFAULT_ROOM_HEIGHT;
+
+/**
+ * Aisles between groups, kept tight on purpose. Wide gaps push the desks apart
+ * and shrink every one of them on the printed page, taking the names with them
+ * — spacing here buys nothing that legibility does not pay for.
+ */
+const AISLE_X = 40;
+const AISLE_Y = 34;
+/** Below the board and teacher desk, which occupy the top of every room. */
+const SEATING_TOP = 170;
 
 function baseRoom(catalog: MessageCatalog): RoomDefinition {
   return {
@@ -51,9 +68,12 @@ function baseRoom(catalog: MessageCatalog): RoomDefinition {
         formatMessage(catalog, 'object.teacherDesk'),
         { x: WIDTH / 2 - 70, y: 74, width: 140, height: 60 },
       ),
+      // Beside the seating band rather than down in the far corner: the
+      // export frames everything drawn, so an outlying object drags empty
+      // floor into the crop and shrinks every name to pay for it.
       buildObject('door', 'door', formatMessage(catalog, 'object.door'), {
         x: WIDTH - 40,
-        y: HEIGHT - 160,
+        y: SEATING_TOP + 60,
         width: 24,
         height: 100,
       }),
@@ -67,17 +87,23 @@ function baseRoom(catalog: MessageCatalog): RoomDefinition {
   };
 }
 
+/** Centres a grid of `count` blocks of `size`, spaced by `gap`. */
+function centredOrigin(count: number, size: number, gap: number, span: number): number {
+  return Math.max(0, Math.round((span - (count * size + (count - 1) * gap)) / 2));
+}
+
 function rowsRoom(catalog: MessageCatalog): RoomDefinition {
   const room = baseRoom(catalog);
+  const { width } = centerFootprint(1, 1);
   room.centers = buildCenterGrid({
     columns: 5,
     rows: 5,
     seatsPerCenter: 1,
     seatColumns: 1,
-    originX: 190,
-    originY: 190,
-    gapX: 90,
-    gapY: 40,
+    originX: centredOrigin(5, width, AISLE_X, WIDTH),
+    originY: SEATING_TOP,
+    gapX: AISLE_X,
+    gapY: AISLE_Y,
     idPrefix: 'd',
     namePrefix: formatMessage(catalog, 'template.namePrefix.desk'),
   });
@@ -86,15 +112,16 @@ function rowsRoom(catalog: MessageCatalog): RoomDefinition {
 
 function pairsRoom(catalog: MessageCatalog): RoomDefinition {
   const room = baseRoom(catalog);
+  const { width } = centerFootprint(2, 2);
   room.centers = buildCenterGrid({
     columns: 3,
     rows: 4,
     seatsPerCenter: 2,
     seatColumns: 2,
-    originX: 180,
-    originY: 190,
-    gapX: 120,
-    gapY: 50,
+    originX: centredOrigin(3, width, AISLE_X, WIDTH),
+    originY: SEATING_TOP,
+    gapX: AISLE_X,
+    gapY: AISLE_Y,
     idPrefix: 'p',
     namePrefix: formatMessage(catalog, 'template.namePrefix.pair'),
   });
@@ -103,15 +130,16 @@ function pairsRoom(catalog: MessageCatalog): RoomDefinition {
 
 function groupsOfFourRoom(catalog: MessageCatalog): RoomDefinition {
   const room = baseRoom(catalog);
+  const { width } = centerFootprint(4, 2);
   room.centers = buildCenterGrid({
     columns: 3,
     rows: 2,
     seatsPerCenter: 4,
     seatColumns: 2,
-    originX: 200,
-    originY: 220,
-    gapX: 160,
-    gapY: 120,
+    originX: centredOrigin(3, width, AISLE_X, WIDTH),
+    originY: SEATING_TOP + 30,
+    gapX: AISLE_X,
+    gapY: AISLE_Y + 30,
     namePrefix: formatMessage(catalog, 'template.namePrefix.group'),
     idPrefix: 'q',
   });
@@ -126,25 +154,25 @@ function groupsOfFourRoom(catalog: MessageCatalog): RoomDefinition {
 function trapezoidGroupsRoom(catalog: MessageCatalog): RoomDefinition {
   const room = baseRoom(catalog);
   const namePrefix = formatMessage(catalog, 'template.namePrefix.group');
-  // Unrotated footprint of a 4-desk row: width ~207.8, height 80. Positions
-  // are chosen so the *rotated* (90°) bounding box — 80 wide, ~207.8 tall —
-  // clears the board/teacher desk up top and the door at bottom-right.
-  const centers = [
-    { x: 300, y: 250 },
-    { x: 600, y: 250 },
-    { x: 900, y: 250 },
-    { x: 300, y: 570 },
-    { x: 600, y: 570 },
-    { x: 900, y: 570 },
-  ];
-  room.centers = centers.map((center, index) => {
-    const width = 207.8;
-    const height = 80;
+
+  // Turned 90°, a row's bounding box swaps: narrow across, long down the room.
+  // Six of them stand side by side in a single band below the board.
+  const footprint = trapezoidRowFootprint(4);
+  const slot = { width: footprint.height, height: footprint.width };
+  const columns = 6;
+  const originX = centredOrigin(columns, slot.width, AISLE_X, WIDTH);
+
+  room.centers = Array.from({ length: columns }, (_, index) => {
+    const slotX = originX + index * (slot.width + AISLE_X);
+    // `x`/`y` describe the unrotated box; rotation pivots about its midpoint,
+    // so convert from where the rotated box should land.
+    const midX = slotX + slot.width / 2;
+    const midY = SEATING_TOP + slot.height / 2;
     return buildTrapezoidRow({
       id: `tg${index + 1}`,
       name: `${namePrefix} ${index + 1}`,
-      x: center.x - width / 2,
-      y: center.y - height / 2,
+      x: midX - footprint.width / 2,
+      y: midY - footprint.height / 2,
       count: 4,
       rotation: 90,
     });

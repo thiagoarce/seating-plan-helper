@@ -73,8 +73,15 @@ export const DEFAULT_ROOM_VIEW_OPTIONS: RoomViewOptions = {
 };
 
 const SEAT_CORNER = 6;
-const NAME_BASE_FONT_SIZE = 11;
-const NAME_MIN_FONT_SIZE = 6;
+/**
+ * Nominal name size, in room units. Sized against `SEAT_DEPTH` so a name fills
+ * the desk it sits in — `fitSeatNameSize` only ever shrinks from here, so a
+ * value too small silently caps how large names can print.
+ */
+export const NAME_BASE_FONT_SIZE = 20;
+const NAME_MIN_FONT_SIZE = 7;
+/** Band along the desk's front edge held for the chair-back marker. */
+const CHAIR_STRIP = 10;
 const NAME_LINE_RATIO = 1.15;
 
 /** Unrotated trapezoid: narrow edge at top (toward `rotation`'s direction), wide at bottom. */
@@ -107,10 +114,13 @@ export function wrapSeatNameAt(name: string, seat: Seat, fontSize: number): Wrap
   const desk = seatDeskSize(seat);
   // A trapezoid tapers toward its narrow edge, so keep text off the slanted
   // sides by budgeting for the narrower half of the wedge.
-  const widthInset = seat.deskShape === 'trapezoid' ? desk.width * 0.3 : 8;
+  const widthInset = seat.deskShape === 'trapezoid' ? desk.width * 0.3 : 16;
   return wrapName(name, {
     maxWidth: desk.width - widthInset,
-    maxLines: Math.max(1, Math.floor(desk.height / (fontSize * NAME_LINE_RATIO))),
+    maxLines: Math.max(
+      1,
+      Math.floor((desk.height - CHAIR_STRIP) / (fontSize * NAME_LINE_RATIO)),
+    ),
     fontSize,
     // Pinning the floor to the requested size stops wrapName shrinking on its
     // own — the caller decides the size so every desk can share one.
@@ -359,7 +369,11 @@ export function SeatShape({
   const wrapped = wrapSeatNameAt(label, seat, nameSize);
 
   const lineHeight = wrapped.fontSize * NAME_LINE_RATIO;
-  const firstLineY = y - ((wrapped.lines.length - 1) * lineHeight) / 2 + wrapped.fontSize * 0.35;
+  // Centred in the desk minus the chair strip, so the last line clears the
+  // chair-back marker instead of sitting on it.
+  const nameCentreY = y - CHAIR_STRIP / 2;
+  const firstLineY =
+    nameCentreY - ((wrapped.lines.length - 1) * lineHeight) / 2 + wrapped.fontSize * 0.35;
 
   const classes = [
     'seat-shape',

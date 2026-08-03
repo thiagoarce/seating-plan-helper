@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createEmptyProject, createEmptyRoom, SEAT_DEPTH } from '../domain/defaults';
 import type { Seat, SeatingProject } from '../domain/types';
 import {
+  NAME_BASE_FONT_SIZE as BASE,
   buildSeatPresentations,
   fitSeatNameSize,
   planNameFontSize,
@@ -105,7 +106,7 @@ describe('seat name fitting', () => {
 
   it('never draws more lines than the desk depth allows', () => {
     const name = 'Maria Cecília de Souza Lima';
-    const size = fitSeatNameSize(name, rectangular, 11);
+    const size = fitSeatNameSize(name, rectangular, BASE);
     const wrapped = wrapSeatNameAt(name, rectangular, size);
 
     expect(wrapped.lines.length * wrapped.fontSize * 1.15).toBeLessThanOrEqual(SEAT_DEPTH);
@@ -114,26 +115,27 @@ describe('seat name fitting', () => {
   it('fits a longer name on the deeper trapezoid desk than on a flat one', () => {
     const name = 'Maria Cecília de Souza Lima';
 
-    expect(fitSeatNameSize(name, trapezoid, 11)).toBeGreaterThanOrEqual(
-      fitSeatNameSize(name, rectangular, 11),
+    expect(fitSeatNameSize(name, trapezoid, BASE)).toBeGreaterThanOrEqual(
+      fitSeatNameSize(name, rectangular, BASE),
     );
   });
 
   it('reports overflow only when even the smallest size cannot fit', () => {
     const name = 'Wolfeschlegelsteinhausenbergerdorff';
-    const size = fitSeatNameSize(name, rectangular, 11);
+    const size = fitSeatNameSize(name, rectangular, BASE);
 
     expect(wrapSeatNameAt(name, rectangular, size).overflows).toBe(true);
-    expect(wrapSeatNameAt('Ana', rectangular, fitSeatNameSize('Ana', rectangular, 11)).overflows).toBe(
+    expect(wrapSeatNameAt('Ana', rectangular, fitSeatNameSize('Ana', rectangular, BASE)).overflows).toBe(
       false,
     );
   });
 
   it('gives every seated student the same name size', () => {
+    const hardest = 'Wolfeschlegelsteinhausenbergerdorff';
     const project = projectWithOneGroup();
     project.roster = [
       { id: 'short', name: 'Ana' },
-      { id: 'long', name: 'Maria Cecília de Souza Lima' },
+      { id: 'long', name: hardest },
     ];
     const seatIds = project.room.centers[0]!.seats.map((seat) => seat.id);
     const presentations = buildSeatPresentations(
@@ -146,10 +148,14 @@ describe('seat name fitting', () => {
     );
 
     const shared = planNameFontSize(presentations, 'full', 1);
+    const alone = presentations.map((presentation) =>
+      fitSeatNameSize(presentation.studentName ?? '', presentation.seat, BASE),
+    );
 
-    // The shared size is the one the hardest name can manage, not the easy one.
-    expect(shared).toBe(fitSeatNameSize('Maria Cecília de Souza Lima', rectangular, 11));
-    expect(shared).toBeLessThan(fitSeatNameSize('Ana', rectangular, 11));
+    // Every desk settles on the size the hardest name can manage — sizing each
+    // desk on its own is what left one name smaller than its neighbour.
+    expect(shared).toBe(Math.min(...alone));
+    expect(Math.max(...alone)).toBeGreaterThan(shared);
   });
 });
 

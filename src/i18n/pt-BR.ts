@@ -281,7 +281,9 @@ export const ptBR: MessageCatalog = {
     'Considere desativar uma dessas regras ou transformá-la em preferência.',
 
   // -- Plan / placement -----------------------------------------------------
-  'plan.title': 'Mapa de Sala',
+  // The school is bilingual and the printed plan is headed in English on
+  // purpose — this is the document title, not app chrome.
+  'plan.title': 'Seating Plan',
   'plan.dragHint': 'Arraste um nome para um lugar. Solte sobre outro aluno para trocar.',
   'plan.emptySeat': 'Lugar livre',
   'plan.assign': 'Colocar aqui',
