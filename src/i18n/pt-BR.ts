@@ -51,6 +51,12 @@ export const ptBR: MessageCatalog = {
   'template.trapezoidFlower.name': 'Flor trapezoidal',
   'template.trapezoidFlower.description':
     'Mesas trapezoidais em leque de 4, formando uma flor/estrela ao redor de um centro.',
+  'template.trapezoidHexagon.name': 'Hexágono trapezoidal',
+  'template.trapezoidHexagon.description':
+    'Quatro grupos de 6 mesas trapezoidais fechando um hexágono completo.',
+  'template.trapezoidParallelogram.name': 'Paralelogramo trapezoidal',
+  'template.trapezoidParallelogram.description':
+    'Fileiras de mesas trapezoidais encaixadas em paralelogramo — o arranjo mais usado na prática.',
   'template.seatCount': '{count} lugares',
   'template.namePrefix.desk': 'Carteira',
   'template.namePrefix.pair': 'Dupla',
@@ -65,6 +71,7 @@ export const ptBR: MessageCatalog = {
 
   // -- Room editor ----------------------------------------------------------
   'editor.title': 'Editor da sala',
+  'editor.add.rectangular': 'Carteira retangular',
   'editor.add.seat': 'Lugar avulso',
   'editor.add.center': 'Grupo de {count}',
   'editor.add.customCenter': 'Grupo personalizado',

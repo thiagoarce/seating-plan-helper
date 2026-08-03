@@ -158,16 +158,21 @@ export function EditorToolsPanel({
 
   return (
     <Panel title={t('editor.title')}>
-      <div className="stack" style={{ marginBottom: 'var(--space-4)' }}>
-        <button type="button" onClick={() => addCenter(1)}>
-          {t('editor.add.seat')}
-        </button>
-        {[2, 3, 4, 5, 6].map((count) => (
-          <button key={count} type="button" onClick={() => addCenter(count)}>
-            {t('editor.add.center', { count })}
-          </button>
-        ))}
-      </div>
+      <SelectField
+        label={t('editor.add.rectangular')}
+        value=""
+        onChange={(value) => {
+          if (value) addCenter(Number(value));
+        }}
+        options={[
+          { value: '', label: t('common.none') },
+          { value: '1', label: t('editor.add.seat') },
+          ...[2, 3, 4, 5, 6].map((count) => ({
+            value: String(count),
+            label: t('editor.add.center', { count }),
+          })),
+        ]}
+      />
 
       <SelectField
         label={t('editor.add.trapezoid')}

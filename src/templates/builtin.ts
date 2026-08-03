@@ -17,6 +17,8 @@ import {
   buildDepthBands,
   buildObject,
   buildTrapezoidFlower,
+  buildTrapezoidHexagon,
+  buildTrapezoidRow,
 } from './builders';
 
 export type TemplateId =
@@ -26,7 +28,9 @@ export type TemplateId =
   | 'groups-of-four'
   | 'mixed'
   | 'organic-islands'
-  | 'trapezoid-flower';
+  | 'trapezoid-flower'
+  | 'trapezoid-hexagon'
+  | 'trapezoid-parallelogram';
 
 export interface TemplateDescriptor {
   id: TemplateId;
@@ -195,6 +199,48 @@ function trapezoidFlowerRoom(catalog: MessageCatalog): RoomDefinition {
   return room;
 }
 
+/** Four hexagon pods (§ `buildTrapezoidHexagon`) — true 60° trapezoid fans. */
+function trapezoidHexagonRoom(catalog: MessageCatalog): RoomDefinition {
+  const room = baseRoom(catalog);
+  const namePrefix = formatMessage(catalog, 'template.namePrefix.hexagon');
+  const positions = [
+    { x: 60, y: 140 },
+    { x: 620, y: 140 },
+    { x: 60, y: 460 },
+    { x: 620, y: 460 },
+  ];
+  room.centers = positions.map((position, index) =>
+    buildTrapezoidHexagon({
+      id: `hex${index + 1}`,
+      name: `${namePrefix} ${index + 1}`,
+      x: position.x,
+      y: position.y,
+    }),
+  );
+  return room;
+}
+
+/**
+ * Rows of trapezoid desks tiled into parallelogram-shaped clusters
+ * (§ `buildTrapezoidRow`) — the arrangement teachers reach for more often
+ * than the flower or hexagon fans.
+ */
+function trapezoidParallelogramRoom(catalog: MessageCatalog): RoomDefinition {
+  const room = baseRoom(catalog);
+  const namePrefix = formatMessage(catalog, 'template.namePrefix.trapezoidRow');
+  const ys = [160, 300, 440, 580];
+  room.centers = ys.map((y, index) =>
+    buildTrapezoidRow({
+      id: `prow${index + 1}`,
+      name: `${namePrefix} ${index + 1}`,
+      x: 475,
+      y,
+      count: 5,
+    }),
+  );
+  return room;
+}
+
 const BUILDERS: Record<TemplateId, (catalog: MessageCatalog) => RoomDefinition> = {
   blank: baseRoom,
   rows: rowsRoom,
@@ -203,6 +249,8 @@ const BUILDERS: Record<TemplateId, (catalog: MessageCatalog) => RoomDefinition> 
   mixed: mixedRoom,
   'organic-islands': organicIslandsRoom,
   'trapezoid-flower': trapezoidFlowerRoom,
+  'trapezoid-hexagon': trapezoidHexagonRoom,
+  'trapezoid-parallelogram': trapezoidParallelogramRoom,
 };
 
 export const TEMPLATE_DESCRIPTORS: TemplateDescriptor[] = [
@@ -240,6 +288,18 @@ export const TEMPLATE_DESCRIPTORS: TemplateDescriptor[] = [
     id: 'trapezoid-flower',
     nameKey: 'template.trapezoidFlower.name',
     descriptionKey: 'template.trapezoidFlower.description',
+    seatCount: 20,
+  },
+  {
+    id: 'trapezoid-hexagon',
+    nameKey: 'template.trapezoidHexagon.name',
+    descriptionKey: 'template.trapezoidHexagon.description',
+    seatCount: 24,
+  },
+  {
+    id: 'trapezoid-parallelogram',
+    nameKey: 'template.trapezoidParallelogram.name',
+    descriptionKey: 'template.trapezoidParallelogram.description',
     seatCount: 20,
   },
   {
