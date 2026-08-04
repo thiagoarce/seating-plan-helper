@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { rectCenter, rotatePoint, seatWorldPosition } from '../domain/geometry';
 import type { Point, Rotation } from '../domain/types';
-import { buildTrapezoidDesk, buildTrapezoidFlower, buildTrapezoidHexagon, buildTrapezoidRow } from './builders';
+import { SEAT_DEPTH, SEAT_WIDTH } from '../domain/defaults';
+import {
+  buildClosedIsland,
+  buildTrapezoidDesk,
+  buildTrapezoidFlower,
+  buildTrapezoidHexagon,
+  buildTrapezoidRow,
+  closedIslandFootprint,
+} from './builders';
 
 /** Rotates by an arbitrary degree, unlike `rotatePoint` which only handles quarter turns. */
 function rotateByDegrees(point: Point, origin: Point, degrees: number): Point {
@@ -154,5 +162,61 @@ describe('buildTrapezoidRow', () => {
     const long = buildTrapezoidRow({ id: 'r1', x: 0, y: 0, count: 6 });
     expect(long.width).toBeGreaterThan(short.width);
     expect(long.height).toBe(short.height);
+  });
+});
+
+describe('buildClosedIsland', () => {
+  const island = buildClosedIsland({ id: 'i1', x: 100, y: 200, name: 'Grupo 1' });
+  const [a, b, c, d, head] = island.seats;
+
+  it('seats five, with only the fifth turned across the end', () => {
+    expect(island.seats).toHaveLength(5);
+    expect([a, b, c, d].map((seat) => seat!.rotation)).toEqual([180, 180, 0, 0]);
+    expect(head!.rotation).toBe(270);
+  });
+
+  it('arranges the first four as a 2x2 block', () => {
+    expect(a!.y).toBe(b!.y);
+    expect(c!.y).toBe(d!.y);
+    expect(a!.x).toBe(c!.x);
+    expect(b!.x).toBe(d!.x);
+    expect(c!.y).toBeGreaterThan(a!.y);
+    expect(b!.x).toBeGreaterThan(a!.x);
+  });
+
+  it('puts the head desk past the block, centred on it', () => {
+    expect(head!.x).toBeGreaterThan(b!.x);
+    expect(head!.y).toBeCloseTo((a!.y + c!.y) / 2, 6);
+  });
+
+  it('closes the rectangle: the turned desk spans the block it caps', () => {
+    // Quarter-turned, the head desk is drawn SEAT_WIDTH tall — enough to reach
+    // across both rows rather than leaving the end open.
+    const blockTop = a!.y - SEAT_DEPTH / 2;
+    const blockBottom = c!.y + SEAT_DEPTH / 2;
+    const headTop = head!.y - SEAT_WIDTH / 2;
+    const headBottom = head!.y + SEAT_WIDTH / 2;
+
+    expect(headBottom - headTop).toBeGreaterThan((blockBottom - blockTop) * 0.8);
+  });
+
+  it('keeps every seat inside the reported footprint', () => {
+    expect(island.width).toBe(closedIslandFootprint().width);
+    expect(island.height).toBe(closedIslandFootprint().height);
+    for (const seat of island.seats) {
+      expect(seat.x).toBeGreaterThan(0);
+      expect(seat.y).toBeGreaterThan(0);
+      expect(seat.x).toBeLessThan(island.width);
+      expect(seat.y).toBeLessThan(island.height);
+    }
+  });
+
+  it('is wider than it is tall, unlike a plain group of five', () => {
+    expect(island.width).toBeGreaterThan(island.height);
+  });
+
+  it('gives seats unique, locally numbered ids', () => {
+    expect(new Set(island.seats.map((seat) => seat.id)).size).toBe(5);
+    expect(island.seats.map((seat) => seat.label)).toEqual(['1', '2', '3', '4', '5']);
   });
 });

@@ -22,8 +22,10 @@ import { createId } from '../shared/id';
 import { NumberField, Panel, SelectField, TextField, Toggle } from '../shared/ui';
 import {
   buildCenter,
+  buildClosedIsland,
   buildObject,
   buildRegion,
+  closedIslandFootprint,
   buildTrapezoidDesk,
   buildTrapezoidFlower,
   buildTrapezoidHexagon,
@@ -52,6 +54,9 @@ const DEFAULT_OBJECT_SIZE: Record<RoomObjectType, { width: number; height: numbe
   cabinet: { width: 120, height: 45 },
   custom: { width: 100, height: 60 },
 };
+
+/** Not a seat count, so it needs its own value in the rectangular picker. */
+const CLOSED_ISLAND = 'closed-island';
 
 type TrapezoidArrangement = 'single' | 'flower4' | 'hexagon6' | 'row4' | 'row5' | 'row6';
 
@@ -131,6 +136,15 @@ export function EditorToolsPanel({
     });
   };
 
+  const addClosedIsland = (): void => {
+    onUpdateRoom((draft) => {
+      const id = createId('center');
+      const name = `${t('editor.defaultName.group')} ${draft.centers.length + 1}`;
+      const spot = dropSpot(draft, closedIslandFootprint());
+      draft.centers.push(buildClosedIsland({ id, x: spot.x, y: spot.y, name }));
+    });
+  };
+
   const addTrapezoid = (arrangement: TrapezoidArrangement): void => {
     onUpdateRoom((draft) => {
       const id = createId('center');
@@ -162,7 +176,9 @@ export function EditorToolsPanel({
         label={t('editor.add.rectangular')}
         value=""
         onChange={(value) => {
-          if (value) addCenter(Number(value));
+          if (!value) return;
+          if (value === CLOSED_ISLAND) addClosedIsland();
+          else addCenter(Number(value));
         }}
         options={[
           { value: '', label: t('common.none') },
@@ -171,6 +187,7 @@ export function EditorToolsPanel({
             value: String(count),
             label: t('editor.add.center', { count }),
           })),
+          { value: CLOSED_ISLAND, label: t('editor.add.closedIsland') },
         ]}
       />
 

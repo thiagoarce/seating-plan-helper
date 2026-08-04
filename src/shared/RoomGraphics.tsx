@@ -96,6 +96,18 @@ function trapezoidPoints(x: number, y: number, half: number): string {
   return points.map(([px, py]) => `${px},${py}`).join(' ');
 }
 
+/**
+ * 90 or 270 when `rotation` lays a desk on its side, 0 otherwise. Half turns
+ * and the trapezoid fans' odd angles deliberately return 0: they leave the
+ * drawn box the same shape, so the name stays upright and readable.
+ */
+export function quarterTurn(rotation: number): 0 | 90 | 270 {
+  const normalised = ((rotation % 360) + 360) % 360;
+  if (normalised === 90) return 90;
+  if (normalised === 270) return 270;
+  return 0;
+}
+
 /** Drawn footprint of a seat's desk, which `deskShape` decides. */
 export function seatDeskSize(seat: Seat): { width: number; height: number } {
   return seat.deskShape === 'trapezoid'
@@ -362,6 +374,7 @@ export function SeatShape({
   // Trapezoid desks keep their square footprint; a plain desk is a real
   // rectangle — twice as wide (side-to-side) as it is deep (front-to-back).
   const halfHeight = isTrapezoid ? SEAT_SIZE / 2 : SEAT_DEPTH / 2;
+  const textRotation = isTrapezoid ? 0 : quarterTurn(rotation);
   const label = studentName ? displayName(studentName, options.nameStyle) : '';
   const nameSize =
     options.nameFontSize ??
@@ -446,42 +459,50 @@ export function SeatShape({
           />
         </g>
       )}
-      {locked ? (
-        <text x={x + halfWidth - 9} y={y - halfHeight + 13} fontSize={10} fill="var(--text-muted)">
-          ✱
-        </text>
-      ) : null}
-      {violating ? (
-        <text x={x - halfWidth + 4} y={y - halfHeight + 13} fontSize={11} fill="var(--danger)">
-          !
-        </text>
-      ) : null}
-      {wrapped.lines.length > 0 ? (
-        <text
-          className="seat-name"
-          x={x}
-          textAnchor="middle"
-          fontSize={wrapped.fontSize}
-          fill="var(--text)"
-        >
-          {wrapped.lines.map((line, index) => (
-            <tspan key={line + String(index)} x={x} y={firstLineY + index * lineHeight}>
-              {line}
-            </tspan>
-          ))}
-        </text>
-      ) : options.showSeatLabels && seat.label ? (
-        <text
-          className="seat-name"
-          x={x}
-          y={y + 4}
-          textAnchor="middle"
-          fontSize={9}
-          fill="var(--text-muted)"
-        >
-          {seat.label}
-        </text>
-      ) : null}
+      {/*
+        A quarter-turned desk is drawn depth-across, so its name is laid out in
+        the desk's own frame and turned with it — otherwise the text would be
+        fitted to a 130-wide box and drawn into a 70-wide one. Never turned a
+        half turn: upside-down names are worse than sideways ones.
+      */}
+      <g transform={textRotation ? `rotate(${textRotation} ${x} ${y})` : undefined}>
+        {locked ? (
+          <text x={x + halfWidth - 9} y={y - halfHeight + 13} fontSize={10} fill="var(--text-muted)">
+            ✱
+          </text>
+        ) : null}
+        {violating ? (
+          <text x={x - halfWidth + 4} y={y - halfHeight + 13} fontSize={11} fill="var(--danger)">
+            !
+          </text>
+        ) : null}
+        {wrapped.lines.length > 0 ? (
+          <text
+            className="seat-name"
+            x={x}
+            textAnchor="middle"
+            fontSize={wrapped.fontSize}
+            fill="var(--text)"
+          >
+            {wrapped.lines.map((line, index) => (
+              <tspan key={line + String(index)} x={x} y={firstLineY + index * lineHeight}>
+                {line}
+              </tspan>
+            ))}
+          </text>
+        ) : options.showSeatLabels && seat.label ? (
+          <text
+            className="seat-name"
+            x={x}
+            y={y + 4}
+            textAnchor="middle"
+            fontSize={9}
+            fill="var(--text-muted)"
+          >
+            {seat.label}
+          </text>
+        ) : null}
+      </g>
     </g>
   );
 }

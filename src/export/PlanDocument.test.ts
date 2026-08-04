@@ -130,6 +130,15 @@ describe('seat name fitting', () => {
     );
   });
 
+  it('does not shrink a name just because its desk is turned sideways', () => {
+    // The name is laid out in the desk's own frame and turned with it, so a
+    // quarter-turned desk holds exactly as much text as a flat one.
+    const name = 'Maria Beatriz Oliveira';
+    const turned: Seat = { ...rectangular, rotation: 270 };
+
+    expect(fitSeatNameSize(name, turned, BASE)).toBe(fitSeatNameSize(name, rectangular, BASE));
+  });
+
   it('gives every seated student the same name size', () => {
     const hardest = 'Wolfeschlegelsteinhausenbergerdorff';
     const project = projectWithOneGroup();

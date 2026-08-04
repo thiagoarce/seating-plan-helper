@@ -63,6 +63,7 @@ export const ptBR: MessageCatalog = {
   'editor.add.seat': 'Lugar avulso',
   'editor.add.center': 'Grupo de {count}',
   'editor.add.customCenter': 'Grupo personalizado',
+  'editor.add.closedIsland': 'Ilha de 5 (4 + carteira na ponta)',
   'editor.add.trapezoid': 'Carteira trapezoidal',
   'editor.add.trapezoidSingle': 'Avulsa (1 lugar)',
   'editor.add.trapezoidFlower': 'Flor (4 lugares)',

@@ -185,6 +185,81 @@ export interface TrapezoidDeskSpec {
   name?: string;
 }
 
+export interface ClosedIslandSpec {
+  id: string;
+  x: number;
+  y: number;
+  name?: string;
+}
+
+/** Footprint of the closed island: the 2x2 block plus the desk capping its end. */
+export function closedIslandFootprint(): { width: number; height: number } {
+  return {
+    width: CENTER_PADDING * 2 + SEAT_WIDTH * 2 + SEAT_GAP * 2 + SEAT_DEPTH,
+    height: CENTER_PADDING * 2 + SEAT_DEPTH * 2 + SEAT_GAP,
+  };
+}
+
+/**
+ * Four desks in a 2x2 block with a fifth turned a quarter turn across one end,
+ * closing the island into a rectangle.
+ *
+ * Seats face outwards — the two rows away from each other, the head desk out
+ * past the end — which is how desks pushed into an island actually sit: the
+ * students ring the outside and the desktops meet in the middle.
+ */
+export function buildClosedIsland(spec: ClosedIslandSpec): SeatingCenter {
+  const { width, height } = closedIslandFootprint();
+  const blockHeight = SEAT_DEPTH * 2 + SEAT_GAP;
+
+  const columnX = [
+    CENTER_PADDING + SEAT_WIDTH / 2,
+    CENTER_PADDING + SEAT_WIDTH + SEAT_GAP + SEAT_WIDTH / 2,
+  ];
+  const rowY = [
+    CENTER_PADDING + SEAT_DEPTH / 2,
+    CENTER_PADDING + SEAT_DEPTH + SEAT_GAP + SEAT_DEPTH / 2,
+  ];
+
+  const seats: Seat[] = [];
+  for (let row = 0; row < 2; row += 1) {
+    for (let column = 0; column < 2; column += 1) {
+      seats.push({
+        id: `${spec.id}-s${seats.length + 1}`,
+        centerId: spec.id,
+        x: columnX[column]!,
+        y: rowY[row]!,
+        // Chair on the outer long edge: top row faces up, bottom row down.
+        rotation: row === 0 ? 180 : 0,
+        enabled: true,
+        label: `${seats.length + 1}`,
+      });
+    }
+  }
+
+  seats.push({
+    id: `${spec.id}-s5`,
+    centerId: spec.id,
+    x: CENTER_PADDING + SEAT_WIDTH * 2 + SEAT_GAP * 2 + SEAT_DEPTH / 2,
+    y: CENTER_PADDING + blockHeight / 2,
+    // Quarter turn puts the chair past the end of the island, facing back in.
+    rotation: 270,
+    enabled: true,
+    label: '5',
+  });
+
+  return {
+    id: spec.id,
+    ...(spec.name !== undefined ? { name: spec.name } : {}),
+    x: spec.x,
+    y: spec.y,
+    width,
+    height,
+    rotation: 0,
+    seats,
+  };
+}
+
 const TRAPEZOID_DESK_PADDING = 10;
 const TRAPEZOID_DESK_BOX_SIZE = SEAT_SIZE + TRAPEZOID_DESK_PADDING * 2;
 
