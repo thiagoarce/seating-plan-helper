@@ -4,8 +4,10 @@
  * One component serves the on-screen preview, the SVG file, the PNG raster, the
  * PDF, and the print view. Colours are declared as literal values inside the
  * document's own `<style>` block rather than inherited from the app theme,
- * because an exported .svg has to stand alone — and because the page is printed
- * on white paper regardless of whether the teacher uses dark mode.
+ * because an exported .svg has to stand alone. The document's own light/dark
+ * choice (`exportLayout.theme`) is a property of the artefact — a plan headed
+ * for a display is a different thing from one headed for paper — and is
+ * deliberately independent of whatever theme the teacher composes it in.
  */
 
 import { rotatedBounds, unionBounds } from '../domain/geometry';
@@ -21,29 +23,11 @@ import {
 } from '../shared/RoomGraphics';
 import type { RoomViewOptions, SeatPresentation } from '../shared/RoomGraphics';
 import { displayName, estimateTextWidth, fitTransform, pageDimensions } from './page';
+import { paletteCss, planPalette, readableBrandColor } from './palette';
 
 const HEADER_HEIGHT = 72;
 const FOOTER_HEIGHT = 28;
 const LOGO_MAX_HEIGHT = 52;
-
-/** Light, print-safe palette. Mirrors the token names used by the components. */
-const PRINT_PALETTE = `
-  svg.plan-document {
-    --text: #14181f;
-    --text-muted: #5b6472;
-    --border: #c8ccd4;
-    --border-strong: #9aa1ac;
-    --seat-fill: #ffffff;
-    --seat-empty-fill: #f3f5f8;
-    --seat-stroke: #6f7885;
-    --center-fill: #eef1f6;
-    --object-fill: #dfe4ec;
-    --region-stroke: #8492a5;
-    --danger: #a12c22;
-    --accent: #1f3a5f;
-    font-family: 'Segoe UI', system-ui, -apple-system, Helvetica, Arial, sans-serif;
-  }
-`;
 
 export interface PlanDocumentProps {
   project: SeatingProject;
@@ -282,6 +266,12 @@ export function PlanDocument({
     ? project.assetStore.assets.find((asset) => asset.id === project.branding.logoAssetId)
     : undefined;
 
+  const palette = planPalette(layout);
+  // A school's brand colour is normally picked against white; on a black page
+  // it vanishes, so it is used only where it still reads.
+  const titleColor = readableBrandColor(project.branding.primaryColor, palette);
+  const ruleColor = readableBrandColor(project.branding.accentColor, palette);
+
   const logoHeight = logo ? Math.min(LOGO_MAX_HEIGHT, headerHeight - 16) : 0;
   const logoWidth = logo && logo.height > 0 ? (logo.width / logo.height) * logoHeight : 0;
   const textLeft = margin + (logoWidth > 0 ? logoWidth + 12 : 0);
@@ -297,10 +287,10 @@ export function PlanDocument({
       role="img"
       aria-label={title}
     >
-      <style>{PRINT_PALETTE}</style>
+      <style>{paletteCss(palette)}</style>
 
       {layout.transparentBackground && !bare ? null : (
-        <rect x={0} y={0} width={page.width} height={page.height} fill="#ffffff" />
+        <rect x={0} y={0} width={page.width} height={page.height} fill={palette.background} />
       )}
 
       {showHeader ? (
@@ -320,7 +310,7 @@ export function PlanDocument({
             y={margin + 26}
             fontSize={20}
             fontWeight={700}
-            fill={project.branding.primaryColor}
+            fill={titleColor}
           >
             {title}
           </text>
@@ -334,7 +324,7 @@ export function PlanDocument({
             y1={margin + headerHeight - 14}
             x2={page.width - margin}
             y2={margin + headerHeight - 14}
-            stroke={project.branding.accentColor}
+            stroke={ruleColor}
             strokeWidth={1.5}
           />
         </g>

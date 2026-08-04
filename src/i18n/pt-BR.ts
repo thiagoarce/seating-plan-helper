@@ -319,6 +319,9 @@ export const ptBR: MessageCatalog = {
   'export.autoReadable': 'Ajustar para os nomes ficarem legíveis',
   'export.tinyNamesWarning':
     'Os nomes vão sair com cerca de {points}pt no papel, pequeno demais para ler. Use o botão abaixo para ajustar.',
+  'export.theme': 'Tema do documento',
+  'export.theme.light': 'Claro (para imprimir)',
+  'export.theme.dark': 'Escuro — fundo preto',
   'export.nameStyle': 'Como mostrar os nomes',
   'export.nameStyle.full': 'Nome completo',
   'export.nameStyle.firstName': 'Só o primeiro nome',

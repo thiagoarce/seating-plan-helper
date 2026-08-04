@@ -120,6 +120,7 @@ export function createDefaultExportLayout(): ExportLayout {
     showRegions: false,
     showEmptySeats: true,
     fitToContent: true,
+    theme: 'light',
     fontScale: 1,
     nameStyle: 'full',
     transparentBackground: false,

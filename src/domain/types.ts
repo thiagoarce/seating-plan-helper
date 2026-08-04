@@ -334,6 +334,8 @@ export interface ExportLayout {
    * fit empty floor onto the page.
    */
   fitToContent: boolean;
+  /** Colour scheme of the exported document itself, independent of the app's. */
+  theme: 'light' | 'dark';
   fontScale: number;
   nameStyle: 'full' | 'firstName' | 'firstNameLastInitial';
   transparentBackground: boolean;

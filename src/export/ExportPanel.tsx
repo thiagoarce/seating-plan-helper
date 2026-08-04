@@ -256,6 +256,16 @@ export function ExportPanel(props: ExportPanelProps): JSX.Element {
         </div>
 
         <SelectField
+          label={t('export.theme')}
+          value={layout.theme}
+          onChange={(value) => props.onSetExportLayout({ theme: value })}
+          options={[
+            { value: 'light', label: t('export.theme.light') },
+            { value: 'dark', label: t('export.theme.dark') },
+          ]}
+        />
+
+        <SelectField
           label={t('export.nameStyle')}
           value={layout.nameStyle}
           onChange={(value) => props.onSetExportLayout({ nameStyle: value })}

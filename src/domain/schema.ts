@@ -285,6 +285,7 @@ export const exportLayoutSchema = z.object({
   // Defaulted rather than required so documents exported before this option
   // existed still import, and open with the readable framing.
   fitToContent: z.boolean().default(true),
+  theme: z.enum(['light', 'dark']).default('light'),
   fontScale: z.number().positive(),
   nameStyle: z.enum(['full', 'firstName', 'firstNameLastInitial']),
   transparentBackground: z.boolean(),
