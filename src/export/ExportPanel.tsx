@@ -13,6 +13,7 @@ import { createId } from '../shared/id';
 import { Notice, NumberField, Panel, SelectField, TextField, Toggle } from '../shared/ui';
 import { analysePlan, planFitScale, PlanDocument } from './PlanDocument';
 import { suggestReadableLayout, TARGET_NAME_POINTS } from './readability';
+import { isScreenSize, pageDimensions } from './page';
 import {
   downloadBlob,
   downloadText,
@@ -21,6 +22,7 @@ import {
   renderPlanPdf,
   renderPlanPng,
   renderPlanSvg,
+  rasterScaleFor,
 } from './render';
 import { projectToJson, projectToTemplate, templateToJson } from '../persistence/document';
 import { rosterToCsv } from '../persistence/csv';
@@ -83,6 +85,13 @@ export function ExportPanel(props: ExportPanelProps): JSX.Element {
 
   /** Size a name actually prints at, which is what "too small to read" means. */
   const namePoints = useMemo(() => 11 * layout.fontScale * planFitScale(project), [project, layout]);
+
+  /** Exact pixels a screen-sized PNG comes out at, so the user can match a display. */
+  const pixelSize = useMemo(() => {
+    const page = pageDimensions(layout);
+    const scale = rasterScaleFor(layout);
+    return { width: Math.round(page.width * scale), height: Math.round(page.height * scale) };
+  }, [layout]);
   const applyReadableLayout = (): void => {
     const suggestion = suggestReadableLayout(project);
     props.onSetExportLayout({
@@ -146,6 +155,11 @@ export function ExportPanel(props: ExportPanelProps): JSX.Element {
         <button type="button" onClick={applyReadableLayout}>
           {t('export.autoReadable')}
         </button>
+        {isScreenSize(layout.pageSize) ? (
+          <p className="muted">
+            {t('export.wallpaperHint', { width: pixelSize.width, height: pixelSize.height })}
+          </p>
+        ) : null}
         {diagnostics.offCanvas ? <Notice kind="warning">{t('export.offCanvasWarning')}</Notice> : null}
 
         <h3 style={{ marginBottom: 'var(--space-2)' }}>{t('branding.title')}</h3>
@@ -226,6 +240,8 @@ export function ExportPanel(props: ExportPanelProps): JSX.Element {
             options={[
               { value: 'A4', label: 'A4' },
               { value: 'Letter', label: 'Letter' },
+              { value: 'screen-16-9', label: t('export.pageSize.screen16x9') },
+              { value: 'screen-16-10', label: t('export.pageSize.screen16x10') },
             ]}
           />
           <SelectField

@@ -19,6 +19,7 @@ export interface RoomEditorViewProps {
   onSelectionChange: (keys: string[]) => void;
   onViewportChange: (viewport: Partial<Store['viewport']>) => void;
   updateRoom: Store['updateRoom'];
+  rotateRoom: Store['rotateRoom'];
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
@@ -49,7 +50,11 @@ export function RoomEditorView(props: RoomEditorViewProps): JSX.Element {
 
   return (
     <div className="workspace">
-      <EditorToolsPanel project={project} onUpdateRoom={props.updateRoom} />
+      <EditorToolsPanel
+        project={project}
+        onUpdateRoom={props.updateRoom}
+        onRotateRoom={props.rotateRoom}
+      />
 
       <section className="panel canvas-panel">
         <div className="canvas-toolbar">

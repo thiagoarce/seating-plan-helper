@@ -249,3 +249,32 @@ describe('rules', () => {
     expect(useStore.getState().project?.rules).toHaveLength(0);
   });
 });
+
+describe('rotateRoom', () => {
+  it('turns the room and flips the page to match', () => {
+    useStore.getState().openProject(
+      createTestProject({ studentCount: 4, room: createRoomFromTemplate('groups-of-four', ptBR) }),
+    );
+    const before = useStore.getState().project!.room;
+    const pageBefore = useStore.getState().project!.exportLayout.orientation;
+
+    useStore.getState().rotateRoom('clockwise');
+    const after = useStore.getState().project!;
+
+    expect(after.room.width).toBe(before.height);
+    expect(after.room.height).toBe(before.width);
+    expect(after.exportLayout.orientation).not.toBe(pageBefore);
+  });
+
+  it('is undoable in one step', () => {
+    useStore.getState().openProject(
+      createTestProject({ studentCount: 4, room: createRoomFromTemplate('groups-of-four', ptBR) }),
+    );
+    const before = structuredClone(useStore.getState().project!.room);
+
+    useStore.getState().rotateRoom('clockwise');
+    useStore.getState().undo();
+
+    expect(useStore.getState().project!.room).toEqual(before);
+  });
+});

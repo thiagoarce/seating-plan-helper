@@ -313,7 +313,11 @@ export interface BrandingConfig {
   showLogo: boolean;
 }
 
-export type PageSize = 'A4' | 'Letter';
+/**
+ * Paper sizes plus the screen shapes a plan gets used at — the finished map is
+ * often set as a classroom display's wallpaper, not only printed.
+ */
+export type PageSize = 'A4' | 'Letter' | 'screen-16-9' | 'screen-16-10';
 
 export interface ExportLayout {
   pageSize: PageSize;

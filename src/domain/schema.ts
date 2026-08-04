@@ -275,7 +275,7 @@ export const brandingSchema = z.object({
 });
 
 export const exportLayoutSchema = z.object({
-  pageSize: z.enum(['A4', 'Letter']),
+  pageSize: z.enum(['A4', 'Letter', 'screen-16-9', 'screen-16-10']),
   orientation: z.enum(['portrait', 'landscape']),
   margin: z.number().nonnegative(),
   showRoomObjects: z.boolean(),

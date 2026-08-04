@@ -10,6 +10,7 @@
 import { useMemo } from 'react';
 import { DEFAULT_GRID_SIZE, SEAT_SIZE } from '../domain/defaults';
 import { rotatedBounds } from '../domain/geometry';
+import type { TurnDirection } from '../domain/rotateRoom';
 import { assignableSeatCount } from '../domain/room';
 import type {
   RoomDefinition,
@@ -108,11 +109,13 @@ function dropSpot(room: RoomDefinition, size: { width: number; height: number })
 export interface EditorToolsPanelProps {
   project: SeatingProject;
   onUpdateRoom: (mutate: (room: RoomDefinition) => void) => void;
+  onRotateRoom: (direction: TurnDirection) => void;
 }
 
 export function EditorToolsPanel({
   project,
   onUpdateRoom,
+  onRotateRoom,
 }: EditorToolsPanelProps): JSX.Element {
   const { t } = useMessages();
   const room = project.room;
@@ -287,6 +290,18 @@ export function EditorToolsPanel({
             })
           }
         />
+      </div>
+
+      <div className="stack" style={{ marginBottom: 'var(--space-4)' }}>
+        <span className="muted">{t('editor.room.rotate')}</span>
+        <div className="field-row">
+          <button type="button" onClick={() => onRotateRoom('counterclockwise')}>
+            {t('editor.room.rotateLeft')}
+          </button>
+          <button type="button" onClick={() => onRotateRoom('clockwise')}>
+            {t('editor.room.rotateRight')}
+          </button>
+        </div>
       </div>
 
       <Toggle

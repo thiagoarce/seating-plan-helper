@@ -13,10 +13,36 @@ export interface PageDimensions {
   height: number;
 }
 
+/**
+ * Portrait-orientation base sizes; `pageDimensions` swaps them for landscape.
+ *
+ * The screen sizes are given in the same units as the paper ones rather than in
+ * pixels on purpose: the header, the margins and the title are all absolute
+ * sizes, so a canvas measured in thousands would render them as specks. The
+ * raster step scales the whole composition up to real pixels instead
+ * (`screenLongEdgePixels`).
+ */
 const PAGE_SIZES: Record<PageSize, PageDimensions> = {
   A4: { width: 595.28, height: 841.89 },
   Letter: { width: 612, height: 792 },
+  'screen-16-9': { width: 540, height: 960 },
+  'screen-16-10': { width: 600, height: 960 },
 };
+
+/** Long edge, in pixels, that a screen-sized export rasterizes to. */
+const SCREEN_LONG_EDGE_PIXELS = 1920;
+
+export function isScreenSize(pageSize: PageSize): boolean {
+  return pageSize.startsWith('screen-');
+}
+
+/**
+ * Pixels along the export's long edge, or null for paper sizes — which are
+ * measured in points and rasterize at a print resolution instead.
+ */
+export function screenLongEdgePixels(layout: ExportLayout): number | null {
+  return isScreenSize(layout.pageSize) ? SCREEN_LONG_EDGE_PIXELS : null;
+}
 
 export function pageDimensions(layout: ExportLayout): PageDimensions {
   const base = PAGE_SIZES[layout.pageSize];

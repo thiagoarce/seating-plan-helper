@@ -17,10 +17,25 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { SeatingProject } from '../domain/types';
 import type { MessageCatalog } from '../i18n/format';
 import { PlanDocument } from './PlanDocument';
-import { pageDimensions } from './page';
+import { pageDimensions, screenLongEdgePixels } from './page';
 
 /** Raster scale for PNG and PDF. 3x on A4 lands around 250 dpi. */
 export const DEFAULT_RASTER_SCALE = 3;
+
+/**
+ * How far to scale the composition when rasterizing.
+ *
+ * Paper wants print resolution. A screen-sized export instead has to land on
+ * exact pixel dimensions — a wallpaper that is not the display's own size gets
+ * rescaled by the operating system, which is what makes text look soft.
+ */
+export function rasterScaleFor(layout: SeatingProject['exportLayout']): number {
+  const targetPixels = screenLongEdgePixels(layout);
+  if (targetPixels === null) return DEFAULT_RASTER_SCALE;
+
+  const { width, height } = pageDimensions(layout);
+  return targetPixels / Math.max(width, height);
+}
 
 export interface RenderInput {
   project: SeatingProject;
@@ -63,7 +78,7 @@ async function rasterize(
   input: RenderInput,
   options: RasterOptions = {},
 ): Promise<HTMLCanvasElement> {
-  const scale = options.scale ?? DEFAULT_RASTER_SCALE;
+  const scale = options.scale ?? rasterScaleFor(input.project.exportLayout);
   const { width, height } = pageDimensions(input.project.exportLayout);
 
   const svg = renderPlanSvg(input);

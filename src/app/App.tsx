@@ -119,6 +119,7 @@ export function App(): JSX.Element {
           onSelectionChange={(keys) => store().setSelection(keys)}
           onViewportChange={(next) => store().setViewport(next)}
           updateRoom={(mutate) => store().updateRoom(mutate)}
+          rotateRoom={(direction) => store().rotateRoom(direction)}
           undo={() => store().undo()}
           redo={() => store().redo()}
           canUndo={canUndo}

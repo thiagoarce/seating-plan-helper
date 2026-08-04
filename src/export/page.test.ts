@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createDefaultExportLayout } from '../domain/defaults';
-import { displayName, fitTransform, pageDimensions, wrapName } from './page';
+import type { ExportLayout } from '../domain/types';
+import {
+  displayName,
+  fitTransform,
+  isScreenSize,
+  pageDimensions,
+  screenLongEdgePixels,
+  wrapName,
+} from './page';
 
 describe('pageDimensions', () => {
   it('returns A4 portrait', () => {
@@ -99,5 +107,49 @@ describe('fitTransform', () => {
 
   it('is safe for degenerate content', () => {
     expect(fitTransform({ width: 0, height: 0 }, { width: 10, height: 10 }).scale).toBe(1);
+  });
+});
+
+describe('screen sizes', () => {
+  const layout = (patch: Partial<ExportLayout>): ExportLayout => ({
+    ...createDefaultExportLayout(),
+    ...patch,
+  });
+
+  it('tells screen sizes apart from paper ones', () => {
+    expect(isScreenSize('screen-16-9')).toBe(true);
+    expect(isScreenSize('screen-16-10')).toBe(true);
+    expect(isScreenSize('A4')).toBe(false);
+    expect(isScreenSize('Letter')).toBe(false);
+  });
+
+  it.each([
+    ['screen-16-9' as const, 16 / 9],
+    ['screen-16-10' as const, 16 / 10],
+  ])('gives %s the right aspect ratio in landscape', (pageSize, ratio) => {
+    const { width, height } = pageDimensions(layout({ pageSize, orientation: 'landscape' }));
+
+    expect(width / height).toBeCloseTo(ratio, 6);
+  });
+
+  it('flips the aspect ratio for a portrait screen', () => {
+    const portrait = pageDimensions(layout({ pageSize: 'screen-16-9', orientation: 'portrait' }));
+
+    expect(portrait.height / portrait.width).toBeCloseTo(16 / 9, 6);
+  });
+
+  it('reports a pixel target only for screen sizes', () => {
+    expect(screenLongEdgePixels(layout({ pageSize: 'screen-16-9' }))).toBe(1920);
+    expect(screenLongEdgePixels(layout({ pageSize: 'A4' }))).toBeNull();
+  });
+
+  it('keeps the composition the same order of magnitude as paper', () => {
+    // Header, margins and title are absolute sizes, so a screen page measured
+    // in thousands would render them as specks.
+    const screen = pageDimensions(layout({ pageSize: 'screen-16-9' }));
+    const a4 = pageDimensions(layout({ pageSize: 'A4' }));
+
+    expect(screen.width).toBeGreaterThan(a4.width / 3);
+    expect(screen.height).toBeLessThan(a4.height * 3);
   });
 });

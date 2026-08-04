@@ -17,6 +17,8 @@ import { evaluateRules } from '../constraints/evaluate';
 import { createDefaultGeneration, createEmptyProject, resolveDistancePresets } from '../domain/defaults';
 import { buildRoomIndex } from '../domain/room';
 import type { RoomIndex } from '../domain/room';
+import { rotateRoom as rotateRoomGeometry } from '../domain/rotateRoom';
+import type { TurnDirection } from '../domain/rotateRoom';
 import type {
   BrandingConfig,
   ExportLayout,
@@ -108,6 +110,7 @@ export interface AppActions {
   // -- Room ----------------------------------------------------------------
   updateRoom: (mutate: (room: RoomDefinition) => void) => void;
   setRoomSize: (width: number, height: number) => void;
+  rotateRoom: (direction: TurnDirection) => void;
 
   // -- Presentation --------------------------------------------------------
   setMetadata: (patch: Partial<ProjectMetadata>) => void;
@@ -388,6 +391,16 @@ export const useStore = create<Store>()((set, get) => {
         project.room.width = width;
         project.room.height = height;
         project.room.orientation = width >= height ? 'landscape' : 'portrait';
+      }, true),
+
+    rotateRoom: (direction) =>
+      apply((project) => {
+        project.room = rotateRoomGeometry(project.room, direction);
+        // The drawing's aspect just flipped; matching the paper keeps names the
+        // same size on the page instead of paying for a band of empty margin.
+        const { orientation } = project.exportLayout;
+        project.exportLayout.orientation =
+          orientation === 'landscape' ? 'portrait' : 'landscape';
       }, true),
 
     // -- Presentation ------------------------------------------------------

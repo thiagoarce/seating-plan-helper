@@ -264,6 +264,9 @@ export function ObjectShape({
   const bounds = rotatedBounds(object, object.rotation);
   const radius = object.shape === 'roundedRectangle' ? 6 : 0;
   const isLine = object.shape === 'line';
+  const labelX = bounds.x + bounds.width / 2;
+  const labelY = bounds.y + bounds.height / 2;
+  const labelRotation = quarterTurn(object.rotation);
 
   return (
     <g
@@ -282,13 +285,19 @@ export function ObjectShape({
         stroke="var(--border-strong)"
         strokeWidth={1.5}
       />
+      {/*
+        Turned upright, a board is a tall sliver: a horizontal caption would
+        run out past both its edges and collide with whatever stands beside it.
+        Turning the caption with the object keeps it along the long side.
+      */}
       <text
         className="seat-name"
-        x={bounds.x + bounds.width / 2}
-        y={bounds.y + bounds.height / 2 + 4}
+        x={labelX}
+        y={labelY + 4}
         textAnchor="middle"
         fontSize={12}
         fill="var(--text-muted)"
+        transform={labelRotation ? `rotate(${labelRotation} ${labelX} ${labelY})` : undefined}
       >
         {object.name}
       </text>
